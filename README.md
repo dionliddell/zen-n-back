@@ -1,4 +1,4 @@
-![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-D97757)
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-D97757)](https://claude.ai)
 
 # Zen-n-Back
 
