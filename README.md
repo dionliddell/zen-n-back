@@ -2,7 +2,7 @@
 
 A card game based on n-back memory training: spot when a new Zener card matches one 'n deep' in a stack.
 
-**[▶ Play now](https://<username>.github.io/zen-n-back/)** | **[⬇ Download](https://github.com/<username>/zen-n-back/archive/refs/heads/main.zip)** (unzip and open index.html to play offline)
+**[▶ Play now](https://dionliddell.github.io/zen-n-back/)** | **[⬇ Download](https://github.com/dionliddell/zen-n-back/archive/refs/heads/main.zip)** (unzip and open index.html to play offline)
 
 ## How to play
 Zen-n-Back is built to be tough. Every level asks more of your focus and memory than the last, and so far no one in testing (me included) has made it past n = 3. Consider it a challenge.
