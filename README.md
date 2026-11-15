@@ -1,3 +1,5 @@
+![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-D97757)
+
 # Zen-n-Back
 
 A card game based on n-back memory training: spot when a new Zener card matches one 'n deep' in a stack.
