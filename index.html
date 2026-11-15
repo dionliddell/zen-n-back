@@ -1,0 +1,1398 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Zen-n-Back</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+/* Layout: a lapis-stone board of carved tiles (Wedjat eye in relief) on the left, a side panel of level, score, clock and records on the right; stacks to one column on phones. */
+:root{
+  --bg:#0a0f1f; --bg-2:#16204a; --panel:#10183a; --line:rgba(214,170,76,.26);
+  --ink:#ece3cc; --muted:#a3a6bb; --gold:#d6aa4c; --gold-hi:#f2cf7a; --bad:#e45d45;
+  --grout:#05081a; --stone-a:#22377a; --stone-b:#121f4f; --relief:#97793c;
+  --board-hi:#f2cf7a; --board-bad:#ff7a5c; --board-cool:#8fd6ff; --board-ink:#ece3cc;
+  --card-face:#f5edd9; --card-edge:#e6dabd; --card-edge-2:#a39572; --back-red:#7c1e2b; --lapis:#172b66; --medal-gold:#d8b25e;
+  --sym-yellow:#d9a100; --sym-red:#c62a1f; --sym-blue:#1d4fb5; --sym-black:#1b1b1f; --sym-green:#1e8a3d;
+  --noise:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --display:"Cinzel","Trajan Pro","Times New Roman",serif;
+  --body:"Spectral",Georgia,"Times New Roman",serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#e6d8b8; --bg-2:#f3e9d0; --panel:#f6eeda; --line:rgba(122,86,22,.3);
+    --ink:#1b2342; --muted:#5d584a; --gold:#87590c; --gold-hi:#6b4507; --bad:#b3341f;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#e6d8b8; --bg-2:#f3e9d0; --panel:#f6eeda; --line:rgba(122,86,22,.3);
+  --ink:#1b2342; --muted:#5d584a; --gold:#87590c; --gold-hi:#6b4507; --bad:#b3341f;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0a0f1f; --bg-2:#16204a; --panel:#10183a; --line:rgba(214,170,76,.26);
+  --ink:#ece3cc; --muted:#a3a6bb; --gold:#d6aa4c; --gold-hi:#f2cf7a; --bad:#e45d45;
+  color-scheme:dark;
+}
+[hidden]{display:none !important}
+html,body{min-height:100%}
+body{margin:0}
+body{
+  background-color:var(--bg);
+  background-image:radial-gradient(ellipse 90% 60% at 50% -10%, var(--bg-2), var(--bg) 70%);
+  color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.5;
+}
+.wrap{
+  max-width:1000px; margin:0 auto;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:12px 16px;
+}
+/* One column sized so the board plus the status bar fit the screen height, phones included. */
+.game{
+  --reserve:140px;
+  width:min(100%, 620px, calc(100vh - var(--reserve) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  width:min(100%, 620px, calc(100dvh - var(--reserve) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  min-width:min(100%, 280px);
+  margin:0 auto; display:grid; gap:10px;
+}
+/* Fixed columns so the headings never shift as the numbers change. */
+.status{display:grid; grid-template-columns:minmax(0,.95fr) minmax(0,.85fr) minmax(0,.85fr) minmax(0,1.55fr) 104px; align-items:end; gap:8px; padding-top:4px}
+.st{display:grid; gap:5px; min-width:0}
+.st .v{font:700 clamp(18px,4.6vw,24px)/1 var(--display); color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap}
+.st .v i{font:italic 400 1em/1 var(--body)}
+.st .v small{font:400 13px var(--body); color:var(--muted); margin-left:2px}
+button.btn.reset{padding:6px 8px; font-size:13px; line-height:1.25; width:104px; min-height:3.4em; text-align:center; justify-self:end; transition:opacity .4s ease, visibility 0s linear 0s, background-color .2s, color .2s}
+button.btn.reset.icon{display:inline-flex; align-items:center; justify-content:center; gap:6px; letter-spacing:.1em}
+button.btn.reset .pz{flex:none; width:20px; height:20px; border:1.5px solid currentColor; border-radius:50%; display:grid; place-items:center}
+button.btn.reset .pz svg{width:60%; height:60%}
+button.btn.reset.gone{opacity:0; visibility:hidden; pointer-events:none; transition:opacity .4s ease, visibility 0s linear .4s}
+.timebar{height:4px}
+.timebar i{background:var(--gold)}
+
+/* ---------- Board ---------- */
+.board{
+  position:relative; width:100%; aspect-ratio:1; max-width:100%; box-sizing:border-box;
+  display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  gap:2%; padding:2%; border-radius:18px; overflow:hidden; isolation:isolate;
+  background:var(--grout);
+  box-shadow:0 0 0 1px rgba(217,173,79,.3), inset 0 0 30px rgba(0,0,0,.8), 0 24px 60px rgba(0,0,0,.45);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation;
+}
+.tile{
+  position:relative; z-index:1; appearance:none; margin:0; padding:0; border:0; font:inherit; color:inherit;
+  border-radius:9px; overflow:hidden; cursor:pointer;
+  background:
+    radial-gradient(circle at 23% 31%, rgba(236,196,104,.6) 0 .7px, transparent 1.3px) 0 0/37px 41px,
+    radial-gradient(circle at 71% 64%, rgba(236,196,104,.45) 0 .6px, transparent 1.2px) 0 0/53px 47px,
+    var(--noise),
+    linear-gradient(150deg, var(--stone-a), var(--stone-b));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), inset 1px 0 0 rgba(255,255,255,.07), inset 0 -2px 0 rgba(0,0,0,.4), inset -1px 0 0 rgba(0,0,0,.3), 0 3px 6px rgba(0,0,0,.5);
+  transition:filter .45s;
+}
+.tile:hover{filter:brightness(1.1)}
+.tile.off, .tile.off:hover{filter:brightness(.5) saturate(.75); cursor:default}
+.tile:focus-visible{outline:2px solid var(--board-hi); outline-offset:2px}
+.tile::after{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:4; opacity:0}
+.tile.right::after{opacity:1; box-shadow:inset 0 0 0 2px var(--board-hi), inset 0 0 26px rgba(242,207,122,.4)}
+.tile.right2::after{opacity:1; box-shadow:inset 0 0 0 2px var(--board-cool), inset 0 0 26px rgba(143,214,255,.45)}
+.tile.wrong::after{opacity:1; box-shadow:inset 0 0 0 2px var(--board-bad), inset 0 0 22px rgba(255,122,92,.35)}
+.tile.wrong{animation:shake .36s ease}
+@keyframes shake{20%{translate:-4px 0}40%{translate:4px 0}60%{translate:-3px 0}80%{translate:2px 0}}
+.relief{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; color:var(--relief); z-index:0; transition:filter .5s}
+.board.glow .relief{filter:brightness(1.35) drop-shadow(0 0 5px rgba(242,207,122,.55))}
+.eyeball{transform-origin:150px 140px}
+.board.blink .eyeball{animation:blink .6s ease-in-out}
+@keyframes blink{0%,100%{transform:scaleY(1)} 45%,55%{transform:scaleY(.06)}}
+
+/* ---------- Cards ---------- */
+.card{position:relative; perspective:700px; border-radius:8% / 5.7%}
+.tile > .card{position:absolute; top:7%; left:50%; height:86%; aspect-ratio:5/7; translate:-50% 0; z-index:2}
+.tile > .card.exposed{translate:calc(-50% - 2px) -5px; z-index:3}
+.card-inner{position:absolute; inset:0; transform-style:preserve-3d; transition:transform var(--flip,.3s) cubic-bezier(.3,.75,.3,1)}
+.card.down .card-inner{transform:rotateY(180deg)}
+.face{position:absolute; inset:0; border-radius:8% / 5.7%; backface-visibility:hidden; -webkit-backface-visibility:hidden; overflow:hidden}
+.front{background:var(--card-face); border:1px solid var(--card-edge-2); display:grid; place-items:center}
+.front .big{width:62%}
+.front .pip{position:absolute; width:17%}
+.front .tl{top:5%; left:7%}
+.front .br{bottom:5%; right:7%; rotate:180deg}
+.back{transform:rotateY(180deg); background:var(--card-face); border:1px solid var(--card-edge-2)}
+.lattice{
+  position:absolute; inset:6% 7%; border-radius:6% / 4.4%;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,236,214,.24) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(255,236,214,.24) 0 1px, transparent 1px 6px),
+    var(--back-red);
+  box-shadow:inset 0 0 0 2px var(--back-red), inset 0 0 0 3px rgba(255,236,214,.55);
+}
+.medal{position:absolute; left:15%; right:15%; top:34%; bottom:34%; border-radius:50%; display:grid; place-items:center;
+  background:radial-gradient(circle at 50% 40%, var(--lapis), #0d1840); border:2px solid var(--medal-gold); color:var(--medal-gold)}
+.medal svg{width:82%; height:auto; display:block}
+.flying{position:absolute; left:0; top:0; z-index:4; filter:drop-shadow(0 12px 14px rgba(0,0,0,.5))}
+
+/* ---------- Fire ---------- */
+.fx{position:absolute; inset:0; z-index:5; pointer-events:none}
+.burnwrap{position:absolute}
+.burnwrap .card{
+  position:absolute; inset:0;
+  -webkit-mask-image:linear-gradient(to top, transparent 0 38%, #000 56%); mask-image:linear-gradient(to top, transparent 0 38%, #000 56%);
+  -webkit-mask-size:100% 300%; mask-size:100% 300%; -webkit-mask-position:0 0; mask-position:0 0;
+  animation:char .8s ease-in var(--d,0ms) forwards, burnmask .8s ease-in var(--d,0ms) forwards;
+}
+.burnwrap .card-inner{transition:none}
+.burnwrap .card.matched .front{box-shadow:inset 0 0 0 3px var(--e2)}
+@keyframes char{
+  0%{filter:none; opacity:1}
+  30%{filter:brightness(1.2) saturate(1.3)}
+  70%{filter:brightness(.4); opacity:.9}
+  100%{filter:brightness(.1); opacity:0; transform:translateY(-14%) scale(.92)}
+}
+@keyframes burnmask{ to{-webkit-mask-position:0 100%; mask-position:0 100%} }
+.fire{position:absolute; left:-12%; right:-12%; top:5%; bottom:-6%; animation:fireout .95s ease-out forwards}
+.fire i{
+  position:absolute; bottom:0; width:42%; height:78%;
+  border-radius:50% 50% 42% 42% / 64% 64% 36% 36%;
+  background:radial-gradient(ellipse at 50% 82%, var(--f1) 0%, var(--f2) 22%, var(--f3) 52%, var(--f4) 74%);
+  filter:blur(2px); transform-origin:50% 100%; opacity:.92;
+  animation:tongue .32s ease-in-out infinite alternate;
+}
+.fire i:nth-child(1){left:2%; animation-delay:-.1s}
+.fire i:nth-child(2){left:29%; height:96%; animation-delay:-.22s}
+.fire i:nth-child(3){left:56%; height:84%; animation-delay:-.05s}
+.fire i:nth-child(4){left:16%; height:60%; width:68%; opacity:.75; animation-delay:-.17s}
+@keyframes tongue{ from{transform:scaleY(.82) scaleX(1.05) skewX(-4deg)} to{transform:scaleY(1.12) scaleX(.92) skewX(5deg)} }
+@keyframes fireout{ 0%{opacity:0; transform:translateY(30%)} 15%{opacity:1} 65%{opacity:1; transform:translateY(-6%)} 100%{opacity:0; transform:translateY(-30%) scaleY(.6)} }
+.ember{position:absolute; left:var(--x); bottom:22%; width:4px; height:4px; border-radius:50%; background:var(--e1); box-shadow:0 0 6px var(--e2), 0 0 2px #fff;
+  animation:ember 1.1s ease-out var(--d) forwards; opacity:0}
+@keyframes ember{ 0%{opacity:0} 15%{opacity:1} 100%{opacity:0; transform:translate(var(--dx), var(--dy)) scale(.4)} }
+.float{position:absolute; z-index:6; font:700 26px/1 var(--display); pointer-events:none; translate:-50% -50%; animation:floatup .9s ease-out forwards; text-shadow:0 2px 6px rgba(0,0,0,.7)}
+.float.good{color:var(--board-hi)}
+.float.cool{color:var(--board-cool)}
+.float.bad{color:var(--board-bad)}
+@keyframes floatup{ 0%{opacity:0; transform:translateY(8px) scale(.8)} 20%{opacity:1; transform:none} 100%{opacity:0; transform:translateY(-34px)} }
+
+/* ---------- Banner / result ---------- */
+.banner{position:absolute; inset:0; z-index:7; display:grid; place-content:center; justify-items:center; gap:8px; pointer-events:none; background:radial-gradient(circle, rgba(6,10,26,.55), transparent 65%)}
+.banner.show{animation:banner 1.6s ease forwards}
+.banner p{margin:0; font:600 15px/1.4 var(--display); letter-spacing:.24em; text-transform:uppercase; color:var(--board-hi)}
+@keyframes banner{ 0%{opacity:0; transform:scale(.9)} 13%{opacity:1; transform:none} 84%{opacity:1} 100%{opacity:0} }
+.result{position:absolute; inset:0; z-index:8; display:grid; place-items:start center; pointer-events:none; background:linear-gradient(to bottom, rgba(5,8,26,.9) 0 28%, rgba(5,8,26,.5) 42%, rgba(5,8,26,.3) 70%, rgba(5,8,26,.15)); animation:fadein .4s ease}
+/* Curtain text scales with the board so it always fits above the draw pile. */
+.board{container-type:inline-size}
+.result-card .title{margin:0; font:700 clamp(20px,6.6cqw,40px)/1.05 var(--display); letter-spacing:.1em; color:var(--board-hi)}
+.result-card .settings-line{margin:0; padding-bottom:2px; font:600 clamp(10px,2.5cqw,14px)/1.5 var(--display); letter-spacing:.2em; text-transform:uppercase; color:var(--board-hi)}
+.res-block{display:grid; justify-items:center; gap:clamp(2px,.8cqw,6px)}
+.res-row{display:flex; align-items:center; gap:clamp(8px,2.4cqw,14px)}
+.res-score{font:700 clamp(30px,10cqw,58px)/1 var(--display); color:var(--board-hi); font-variant-numeric:tabular-nums}
+.res-detail{display:grid; gap:3px; text-align:left; font:italic 400 clamp(11px,2.7cqw,15px)/1.3 var(--body); color:var(--board-ink)}
+.res-detail .newbest{font-style:normal}
+
+/* ---------- Corner buttons and panels ---------- */
+.dock-btn{position:absolute; z-index:10; bottom:3.4%; width:8.5%; min-width:30px; aspect-ratio:1; padding:0; border-radius:50%; display:grid; place-items:center; cursor:pointer;
+  border:1.5px solid rgba(242,207,122,.85); background:rgba(6,10,28,.75); color:var(--board-hi); box-shadow:0 2px 8px rgba(0,0,0,.55); transition:background-color .2s, color .2s}
+.dock-btn svg{width:62%; height:62%}
+.dock-btn{transition:background-color .2s, color .2s, opacity .5s ease, visibility 0s linear 0s}
+.board.playing .dock-btn{opacity:0; visibility:hidden; pointer-events:none; transition:opacity .5s ease, visibility 0s linear .5s}
+.dock-btn.help{left:3.4%}
+.dock-btn.stats-btn{left:50%; translate:-50% 0}
+.dock-btn.settings{right:3.4%}
+.dock-btn:hover{background:rgba(24,36,80,.92)}
+.dock-btn[aria-expanded="true"]{background:var(--board-hi); color:var(--grout)}
+.dock-btn:focus-visible{outline:2px solid var(--board-ink); outline-offset:2px}
+.sheet{
+  --ink:#ece3cc; --muted:#a3a6bb; --gold:#d6aa4c; --gold-hi:#f2cf7a; --line:rgba(214,170,76,.28); --panel:#10183a;
+  position:absolute; left:3%; right:3%; top:3%; bottom:15%; z-index:12; display:flex; flex-direction:column; gap:10px;
+  padding:14px 16px 16px; border-radius:14px; overflow:auto; overscroll-behavior:contain;
+  background:rgba(8,12,32,.96); border:1px solid rgba(217,173,79,.45); box-shadow:0 20px 50px rgba(0,0,0,.6);
+  color:var(--ink); color-scheme:dark; font-size:14.5px; line-height:1.45; animation:fadein .2s ease;
+}
+.sheet header{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.sheet h2{margin:0; font:700 17px/1.2 var(--display); letter-spacing:.14em; text-transform:uppercase; color:var(--gold-hi)}
+.sheet h3{margin:6px 0 0; font:600 11px/1.4 var(--display); letter-spacing:.18em; text-transform:uppercase; color:var(--muted)}
+.sheet p{margin:0}
+.sheet .close{appearance:none; flex:none; width:32px; height:32px; border-radius:50%; border:1px solid var(--gold); background:transparent; color:var(--gold-hi); font:400 22px/1 var(--body); cursor:pointer; display:grid; place-items:center; padding:0}
+.sheet .close:hover{background:var(--gold); color:var(--panel)}
+.sheet .close:focus-visible{outline:2px solid var(--gold-hi); outline-offset:2px}
+.tile > .card.last{animation:invite 1.6s ease-in-out infinite}
+/* Training: matching cards glow and pulse gold. */
+/* Training: Click Me! marks a valid move; a red cross flashes on a wrong tap. */
+.clickme{position:absolute; left:50%; top:50%; z-index:6; translate:-50% -50%; rotate:-28deg; pointer-events:none; white-space:nowrap;
+  font:700 clamp(10px,2.7cqw,16px)/1 var(--display); letter-spacing:.08em; color:var(--board-hi);
+  background:rgba(8,14,36,.86); border:1px solid rgba(242,207,122,.8); border-radius:4px; padding:5px 9px;
+  opacity:0; transition:opacity .18s ease}
+/* On the draw pile, Click Me! pulses in and out, showing the card underneath as it fades. */
+.tile:not(.centre) .clickme{display:none}
+.tile.centre.valid .clickme{opacity:1; animation:clickPulse 2.08s ease-in-out infinite}
+@keyframes clickPulse{0%,100%{opacity:1} 50%{opacity:0}}
+/* On a matching stack, Click Me! is stamped on the back of the top card. */
+.back .stamp{position:absolute; left:50%; top:50%; translate:-50% -50%; rotate:-28deg; z-index:2; white-space:nowrap; pointer-events:none;
+  font:700 clamp(10px,2.7cqw,16px)/1 var(--display); letter-spacing:.08em; color:var(--board-hi);
+  background:rgba(8,14,36,.86); border:1px solid rgba(242,207,122,.8); border-radius:4px; padding:5px 9px}
+.tile.hinted > .card:not(.hint){visibility:hidden}
+.tile > .card.hint.h-base{z-index:1}
+.tile > .card.hint.h-cover{z-index:3; animation:coverFade 2.08s ease-in-out infinite}
+@keyframes coverFade{0%,22%{opacity:1} 42%,68%{opacity:0} 88%,100%{opacity:1}}
+.tile > .card.hint.flipper .card-inner{transition:none; animation:hintFlip 2.08s ease-in-out infinite}
+/* No glowing pulses on cards in training mode. */
+.board.training .tile > .card.last, .board.training.ready .tile > .card.deckcard{animation:none; filter:none}
+@keyframes hintFlip{0%,22%{transform:rotateY(180deg)} 40%,66%{transform:rotateY(0deg)} 84%,100%{transform:rotateY(180deg)}}
+@media (prefers-reduced-motion: reduce){
+  .tile.centre.valid .clickme{animation:none}
+  .tile > .card.hint.h-cover{animation:none; opacity:.35}
+  .tile > .card.hint.flipper .card-inner{animation:none}
+}
+.nope{position:absolute; inset:0; z-index:7; display:grid; place-items:center; pointer-events:none; opacity:0}
+.nope svg{width:46%; height:46%; filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+.tile.nope-show .nope{animation:nope .7s ease forwards}
+@keyframes nope{0%{opacity:0; transform:scale(.7)} 15%{opacity:1; transform:scale(1)} 70%{opacity:1} 100%{opacity:0}}
+.cur-game{display:grid; gap:10px}
+.mode-tag{display:block; font:500 11px/1 var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--gold-hi); margin-bottom:3px}
+/* The end-game (!) button only appears while a game is paused. */
+/* Resume and Reset! appear together while a game is paused. */
+.pause-actions{position:absolute; z-index:10; left:50%; translate:-50% 0; bottom:3.4%; display:none; gap:10px}
+.board.paused .pause-actions{display:flex; animation:fadein .3s ease}
+.pill-btn{appearance:none; cursor:pointer; padding:10px 18px; border-radius:999px; white-space:nowrap;
+  font:600 clamp(11px,2.6cqw,14px)/1.25 var(--display); letter-spacing:.14em; text-transform:uppercase;
+  border:1.5px solid rgba(242,207,122,.85); background:rgba(6,10,28,.8); color:var(--board-hi); box-shadow:0 2px 8px rgba(0,0,0,.55)}
+.pill-btn.resume-btn{background:var(--board-hi); color:var(--grout)}
+.pill-btn:hover{filter:brightness(1.12)}
+.pill-btn:focus-visible{outline:2px solid var(--board-ink); outline-offset:2px}
+.sheet .sub-h2{margin-top:8px; padding-top:12px; border-top:1px solid var(--line)}
+.tog{appearance:none; pointer-events:auto; cursor:pointer; font:inherit; letter-spacing:inherit; text-transform:inherit; color:var(--board-hi);
+  margin:0; padding:1px .5em; border:1px solid rgba(242,207,122,.7); border-radius:999px; background:rgba(242,207,122,.12); transition:background-color .2s}
+.tog{display:inline-grid; vertical-align:baseline}
+.tog > span{grid-area:1 / 1; text-align:center}
+.tog > .alt{visibility:hidden}
+.tog:hover{background:rgba(242,207,122,.28)}
+.tog:focus-visible{outline:2px solid var(--board-ink); outline-offset:2px}
+.tile > .card.deckcard{transition:opacity .5s ease}
+.tile > .card.deckcard.burnt{opacity:0; visibility:hidden; transition:none}
+.sheet .signoff{text-align:right; font-style:italic; color:var(--gold-hi)}
+.sheet .signoff a{color:inherit; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px}
+.sheet .signoff a:hover{color:var(--ink)}
+.sheet .signoff a:focus-visible{outline:2px solid var(--gold-hi); outline-offset:2px; border-radius:2px}
+.set-list{display:grid}
+.sheet .set-row{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid var(--line); position:relative}
+.sheet .set-row:last-child{border-bottom:1px solid var(--line)}
+.sheet .set-text{display:grid; gap:4px; min-width:0}
+.sheet .set-text b{font:600 14px/1.4 var(--display); letter-spacing:.12em; text-transform:uppercase; color:var(--gold-hi)}
+.sheet .set-text small{font-size:13px; line-height:1.4; color:var(--muted)}
+.sheet .seg{flex:none}
+.set-toggle{cursor:pointer}
+.set-toggle input{position:absolute; opacity:0; width:1px; height:1px; margin:0}
+.set-toggle .sw{flex:none; width:44px; height:24px; border-radius:12px; background:var(--line); position:relative; transition:background-color .2s}
+.set-toggle .sw::after{content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:var(--ink); transition:transform .2s}
+.set-toggle input:checked + .sw{background:var(--gold)}
+.set-toggle input:checked + .sw::after{transform:translateX(20px); background:var(--panel)}
+.set-toggle input:focus-visible + .sw{outline:2px solid var(--gold-hi); outline-offset:2px}
+.rules-list{margin:0; padding-left:18px; display:grid; gap:7px}
+.rules-list li::marker{color:var(--gold)}
+.result-card .again{margin-top:clamp(5px,1.8cqw,12px); padding-bottom:2px; font:600 clamp(10px,2.5cqw,13px)/1.5 var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--board-ink); opacity:.85}
+.prompt{margin:0; text-align:center; font:500 14px/1.4 var(--display); letter-spacing:.12em; text-transform:uppercase; color:var(--gold-hi); border:1px dashed var(--line); border-radius:10px; padding:12px}
+.board.ready .deckcard{animation:invite 1.6s ease-in-out infinite}
+@keyframes invite{0%,100%{filter:drop-shadow(0 0 0 rgba(242,207,122,0))} 50%{filter:drop-shadow(0 0 14px rgba(242,207,122,.85))}}
+.board.ready .centre{z-index:9}
+@keyframes fadein{from{opacity:0}}
+.result-card{display:grid; justify-items:center; gap:clamp(3px,1.1cqw,8px); text-align:center; color:var(--board-ink); padding:clamp(8px,2.6cqw,18px) 12px 0}
+.result-card .kicker{margin:0; padding-bottom:2px; font:600 clamp(10px,2.5cqw,14px)/1.5 var(--display); letter-spacing:.2em; text-transform:uppercase; color:var(--board-hi)}
+.result-card .big{font:700 clamp(36px,8vw,56px)/1 var(--display); color:var(--board-hi); font-variant-numeric:tabular-nums}
+.result-card .big small{display:block; font:400 15px/1.4 var(--body); font-style:italic; color:var(--board-ink); opacity:.8; margin-top:6px}
+.result-card p{margin:0}
+.result-card .newbest{font:600 clamp(9px,2.2cqw,12px)/1.5 var(--display); letter-spacing:.2em; text-transform:uppercase; color:var(--board-cool)}
+.btn-board{appearance:none; margin-top:6px; font:500 15px/1 var(--display); letter-spacing:.14em; text-transform:uppercase; padding:13px 26px; border-radius:10px; cursor:pointer; border:1px solid var(--board-hi); background:var(--board-hi); color:var(--grout)}
+.btn-board:hover{filter:brightness(1.1)}
+.btn-board:focus-visible{outline:2px solid var(--board-ink); outline-offset:3px}
+
+.caption{display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 16px; font-size:14px; color:var(--muted)}
+.caption b{color:var(--ink); font-weight:500}
+
+/* ---------- Side panel ---------- */
+.side{min-width:0; display:grid; gap:18px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px}
+.lbl{display:block; font:600 11px/1.4 var(--display); letter-spacing:.18em; text-transform:uppercase; color:var(--muted)}
+.toprow{display:flex; align-items:center; justify-content:space-between; gap:16px}
+.cartouche{position:relative; display:inline-flex; align-items:baseline; gap:10px; border:2px solid var(--gold); border-radius:999px; padding:8px 26px 8px 22px; color:var(--gold-hi)}
+.cartouche::after{content:""; position:absolute; right:-9px; top:18%; bottom:18%; width:3px; border-radius:2px; background:var(--gold)}
+.cartouche .n{font:italic 400 22px/1 var(--body)}
+.cartouche .eq{font:400 20px/1 var(--display); opacity:.7}
+.cartouche .v{font:700 40px/1 var(--display); font-variant-numeric:tabular-nums}
+.banner .cartouche{border-color:var(--board-hi); color:var(--board-hi); background:rgba(8,14,36,.75); padding:12px 38px 12px 32px}
+.banner .cartouche::after{background:var(--board-hi); right:-11px; width:4px}
+.banner .cartouche .v{font-size:64px}
+.score{text-align:right}
+.score .peak{display:block; margin-top:6px; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
+.score .v{font:700 44px/1 var(--display); font-variant-numeric:tabular-nums; color:var(--ink); display:block; margin-top:6px}
+.clock{display:grid; gap:8px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding-block:14px}
+.clock-row{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.clock .v{font:700 38px/1 var(--display); font-variant-numeric:tabular-nums; color:var(--ink)}
+.clock .v small{font:400 16px var(--body); color:var(--muted); margin-left:4px}
+.clock .of{font-size:14px; color:var(--muted)}
+.bar{height:6px; border-radius:3px; background:var(--line); overflow:hidden}
+.bar i{display:block; height:100%; width:0; background:var(--gold)}
+.ladder{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(5,1fr); gap:6px}
+.ladder li{border:1px solid var(--line); border-radius:8px; padding:7px 4px 6px; text-align:center; display:grid; gap:3px; transition:background-color .3s, border-color .3s}
+.ladder b{font:700 15px/1.3 var(--display); color:var(--muted)}
+.ladder b i{font-family:var(--body); font-weight:400}
+.ladder span{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+.ladder li.reached b{color:var(--gold)}
+.ladder li.current{background:var(--gold); border-color:var(--gold)}
+.ladder li.current b, .ladder li.current span{color:var(--panel)}
+.prog{display:grid; gap:8px}
+.prog .bar i{transition:width .35s ease}
+.prog p{margin:0; font-size:14px; color:var(--muted)}
+.prog p b{color:var(--ink); font-weight:500}
+button.btn{appearance:none; font:600 15px/1.25 var(--display); letter-spacing:.14em; text-transform:uppercase; padding:13px 14px; border-radius:10px; cursor:pointer; border:1px solid var(--gold); background:transparent; color:var(--gold-hi); transition:background-color .2s, color .2s}
+.train{display:flex; gap:12px; align-items:flex-start; cursor:pointer; position:relative}
+.train input{position:absolute; opacity:0; width:1px; height:1px; margin:0}
+.train .sw{flex:none; width:40px; height:22px; border-radius:11px; background:var(--line); position:relative; transition:background-color .2s; margin-top:1px}
+.train .sw::after{content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:var(--ink); transition:transform .2s}
+.train input:checked + .sw{background:var(--gold)}
+.train input:checked + .sw::after{transform:translateX(18px); background:var(--panel)}
+.train input:focus-visible + .sw{outline:2px solid var(--gold-hi); outline-offset:2px}
+.train b{display:block; font:500 14px/1.3 var(--display); letter-spacing:.1em; text-transform:uppercase; color:var(--gold-hi)}
+.train small{display:block; font-size:13px; color:var(--muted); margin-top:2px}
+.tile > .card.hint{z-index:3; box-shadow:none; pointer-events:none}
+.card.hint.sgl{--hint-c:var(--board-hi)}
+.card.hint.dbl{--hint-c:var(--board-cool)}
+
+.tile > .card.hint.peek{z-index:2; translate:-71% -8%; rotate:-9deg}
+button.btn small{display:block; margin-top:6px; font:italic 400 13px/1.2 var(--body); letter-spacing:0; text-transform:none; opacity:.85}
+button.btn:hover{background:var(--gold-hi); color:var(--panel); border-color:var(--gold-hi)}
+button.btn:focus-visible{outline:2px solid var(--gold-hi); outline-offset:2px}
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0}
+.stats div{display:grid; gap:5px}
+.stats dt{font:600 10px/1.4 var(--display); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.stats dd{margin:0; font:700 20px/1 var(--display); font-variant-numeric:tabular-nums}
+.best{display:flex; justify-content:space-between; align-items:baseline; gap:12px; border:1px solid var(--line); border-radius:10px; padding:12px 14px}
+.mode{display:grid; gap:8px}
+.mode-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.seg{display:inline-flex; border:1px solid var(--gold); border-radius:10px; overflow:hidden}
+.seg button{appearance:none; border:0; margin:0; background:transparent; color:var(--gold-hi); font:600 13px/1.25 var(--display); letter-spacing:.14em; text-transform:uppercase; padding:9px 18px; cursor:pointer}
+.seg button + button{border-left:1px solid var(--gold)}
+.seg button[aria-pressed="true"]{background:var(--gold); color:var(--panel)}
+.seg button:disabled{cursor:not-allowed; opacity:.55}
+.seg button:focus-visible{outline:2px solid var(--gold-hi); outline-offset:-3px}
+.mode small{font-size:13px; color:var(--muted)}
+.best b{font:700 15px/1.5 var(--display); font-variant-numeric:tabular-nums; color:var(--gold-hi); text-align:right}
+.rules{border-top:1px solid var(--line); padding-top:12px}
+.rules summary{cursor:pointer; font:500 13px/1.4 var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--gold-hi)}
+.rules summary:focus-visible{outline:2px solid var(--gold-hi); outline-offset:2px}
+.rules ul{margin:10px 0 0; padding-left:18px; display:grid; gap:6px; font-size:14.5px; color:var(--ink)}
+.rules li::marker{color:var(--gold)}
+.swatch{display:inline-block; width:.8em; height:.8em; border-radius:50%; vertical-align:-1px; margin-right:3px}
+kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:4px; padding:2px 5px}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+@media (prefers-reduced-motion: reduce){
+  .card-inner{transition-duration:.01s !important}
+  .fire i{animation:none}
+  .tile.wrong{animation:none}
+  .board.ready .deckcard, .tile > .card.last{animation:none; filter:drop-shadow(0 0 10px rgba(242,207,122,.7))}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="wj-brow">
+      <path d="M40 98 C 92 52, 200 44, 268 76 L 264 90 C 198 64, 96 72, 46 112 Z" fill="currentColor" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+    </g>
+    <g id="wj-eye" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M46 148 C 92 102, 198 94, 250 138" stroke-width="9"/>
+      <path d="M46 148 C 100 182, 198 184, 250 138" stroke-width="7"/>
+      <path d="M246 138 H290" stroke-width="10"/>
+      <circle cx="150" cy="140" r="27" fill="currentColor" stroke="none"/>
+    </g>
+    <g id="wj-marks" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M124 178 C 126 204, 124 228, 116 250" stroke-width="9"/>
+      <circle cx="114" cy="254" r="8" fill="currentColor" stroke="none"/>
+      <path d="M170 180 C 182 222, 206 246, 236 248 C 262 250, 272 222, 254 209 C 238 199, 222 214, 234 228" stroke-width="8"/>
+    </g>
+    <filter id="emboss" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="blur"/>
+      <feSpecularLighting in="blur" surfaceScale="3.6" specularConstant=".8" specularExponent="20" lighting-color="#fff1c4" result="spec">
+        <feDistantLight azimuth="225" elevation="38"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/>
+      <feComposite in="SourceGraphic" in2="specIn" operator="arithmetic" k1="0" k2="1" k3=".85" k4="0" result="lit"/>
+      <feOffset in="SourceAlpha" dx="1.1" dy="1.5" result="off"/>
+      <feGaussianBlur in="off" stdDeviation=".9" result="offBlur"/>
+      <feFlood flood-color="#000" flood-opacity=".7"/>
+      <feComposite in2="offBlur" operator="in" result="shadow"/>
+      <feOffset in="SourceAlpha" dx="-.8" dy="-1" result="hiOff"/>
+      <feFlood flood-color="#9db4ff" flood-opacity=".22"/>
+      <feComposite in2="hiOff" operator="in" result="rim"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="rim"/><feMergeNode in="lit"/></feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <main class="game" aria-label="Zen-n-Back">
+    <div class="board" id="board">
+      <div class="fx" id="fx"></div>
+      <div class="banner" id="banner" hidden>
+        <div class="cartouche"><span class="n">n</span><span class="eq">=</span><span class="v" id="bannerN">2</span></div>
+        <p id="bannerText">Ascend</p>
+      </div>
+      <div class="result" id="result">
+        <div class="result-card">
+          <h1 class="title">Zen-n-Back</h1>
+          <p class="settings-line" id="curSettings">Hard mode · Training off</p>
+          <div class="res-block" id="resBlock" hidden>
+            <p class="kicker" id="resKicker">Time's up</p>
+            <div class="res-row">
+              <span class="res-score" id="resScore">0</span>
+              <span class="res-detail"><span id="resTime">points</span><span class="newbest" id="resNew" hidden>New best</span></span>
+            </div>
+          </div>
+          <p class="again" id="drawHint">Click the draw pile to play</p>
+        </div>
+      </div>
+
+      <button type="button" class="dock-btn help" data-sheet="help" aria-label="How to play" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.1 9.2a3 3 0 1 1 4.4 2.6c-.9.5-1.5 1.1-1.5 2.1v.5"/><circle cx="12" cy="17.7" r=".9" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <div class="pause-actions">
+        <button type="button" class="pill-btn resume-btn" id="resumeBtn">Resume</button>
+        <button type="button" class="pill-btn end-btn" aria-label="Reset: end the game">Reset!</button>
+      </div>
+
+      <section class="sheet" id="sheet-help" hidden aria-label="How to play">
+        <header><h2>How to play</h2><button type="button" class="close" aria-label="Close">&times;</button></header>
+        <p>Zen-n-Back is built to be tough. Every level asks more of your focus and memory than the last, and so far no one in testing, me included, has made it past <i>n</i>&nbsp;=&nbsp;3. Consider it a challenge.</p>
+        <p>Tap the draw pile in the centre to start. Each tap turns up a Zener card and deals the previous one onto a random tile around it. If the card <i>n</i> deep in one of the stacks matches the face-up card, tap that stack to score a point and burn it away. If there's no match, tap the draw pile to deal again. Tapping the wrong stack, or dealing when a match was there, costs a point. Every 10 points takes you up a level: fewer tiles, deeper stacks, and more for your memory to hold. The game ends when you reach 50 points or after 5 minutes, and your score is the highest total you reached along the way. Easy mode deals cards face up, Hard mode deals them face down, and training mode shows you where the matches are.</p>
+        <h2 class="sub-h2">Rules in detail</h2>
+        <ul class="rules-list" id="rules">
+          <li>Click the draw pile to start. The clock starts and the first Zener card turns face up.</li>
+          <li>Each click on the draw pile sends the face-up card onto a random tile and turns up the next card.</li>
+          <li>If you think a stack's card <b><i>n</i></b> deep matches the face-up card, click that stack instead. At <i>n</i>&nbsp;=&nbsp;1 that is the top card, at <i>n</i>&nbsp;=&nbsp;2 the second card down, and so on.</li>
+          <li>Each symbol always has its own colour: star yellow, circle red, waves blue, square black, cross green. A match scores 1 point and burns the face-up card and that whole stack in blue flame.</li>
+          <li>Claiming a stack with no match, or clicking the draw pile when a match was there, costs 1 point and burns every stack and the face-up card. Stacks that did match show their card <i>n</i> deep burning face up. Your score never drops below 0.</li>
+          <li><i>n</i> rises at 10, 20, 30 and 40 points and falls if you drop below a mark. The board burns clear at each change.</li>
+          <li>Fewer tiles are in play as <i>n</i> rises: all eight at <i>n</i>&nbsp;=&nbsp;1, the four edges at <i>n</i>&nbsp;=&nbsp;2, left, top and right at <i>n</i>&nbsp;=&nbsp;3, and the tiles either side of the draw pile at <i>n</i>&nbsp;=&nbsp;4 and 5. Unused tiles darken.</li>
+          <li>Double-click the draw pile to undo the last deal. Deal that card again and it returns to the same tile.</li>
+          <li>Easy deals cards face up; Hard deals them face down. Training mode (Hard only) labels the right move with Click Me!, ignores wrong taps (they flash a red cross), goes up a level every 3 points and ends at 15 points or 2 minutes. Training games don't set a high score. To switch either, tap the word on the start or end screen.</li>
+          <li>Your game score is the highest score you reach in 5 minutes, with its <i>n</i> and the time you reached it. Reaching 50 ends the game early. Exit pauses the game, stops the clock and shows Stats. Resume carries on; Reset! ends the game and counts your peak score. After a game, the same button shows Stats.</li>
+          <li>Flames: <span class="swatch" style="background:#1e7bff"></span>match, <span class="swatch" style="background:#22c25a"></span>level up, <span class="swatch" style="background:#f2c400"></span>level down, missed match or time up, <span class="swatch" style="background:#8a2be2"></span>points target reached (50, or 15 in training).</li>
+          <li>Keys: <kbd>Space</kbd> draws. <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> / <kbd>A</kbd> <kbd>D</kbd> / <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> or the number pad claim a stack. <kbd>Esc</kbd> closes this panel.</li>
+        </ul>
+        <h2 class="sub-h2">What is Zen-n-Back?</h2>
+        <p>An n-back task shows you a stream of items and asks whether the current one matches the one from <i>n</i> steps earlier. Psychologists have used it since the 1950s to measure working memory, the mental scratchpad you use to hold and update information.</p>
+        <p>As a training exercise, n-back is said to strengthen working memory, attention and focus, and some early studies suggested gains in reasoning too. The evidence is mixed: people reliably get better at the task itself, while benefits beyond it are still debated.</p>
+        <p>I've always wanted to combine n-back with a card game, and Zen-n-Back, made in partnership with AI, is the result.</p>
+        <p class="signoff">- <a href="https://www.linkedin.com/in/dionliddell/" target="_blank" rel="noopener">Dion Liddell</a>, <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a></p>
+      </section>
+
+      <section class="sheet" id="sheet-stats" hidden aria-label="Stats">
+        <header><h2 id="statsTitle">Stats</h2><button type="button" class="close" aria-label="Close">&times;</button></header>
+        <h3 id="gameHead">Last finished game</h3>
+        <p id="lastGame">None yet</p>
+        <div class="cur-game" id="curGame" hidden>
+        <ol class="ladder" id="ladder" aria-label="Level thresholds">
+          <li><b><i>n</i>=1</b><span>0</span></li>
+          <li><b><i>n</i>=2</b><span>10</span></li>
+          <li><b><i>n</i>=3</b><span>20</span></li>
+          <li><b><i>n</i>=4</b><span>30</span></li>
+          <li><b><i>n</i>=5</b><span>40</span></li>
+        </ol>
+        <div class="prog">
+          <div class="bar"><i id="progBar"></i></div>
+          <p id="progUp"></p>
+          <p id="progDown" hidden></p>
+          <p id="peakDetail"></p>
+        </div>
+        <dl class="stats">
+          <div><dt>Drawn</dt><dd id="stDrawn">0</dd></div>
+          <div><dt>Matches</dt><dd id="stDouble">0</dd></div>
+          <div hidden><dt>Single</dt><dd id="stSingle">0</dd></div>
+          <div><dt>Wrong</dt><dd id="stWrong">0</dd></div>
+        </dl>
+        </div>
+        <h3>This session's high scores</h3>
+        <p><span class="mode-tag">Easy</span><span id="sessEasy">None yet</span></p>
+        <p><span class="mode-tag">Hard</span><span id="sessHard">None yet</span></p>
+        <h3>All-time high scores</h3>
+        <p id="bestVal">None yet</p>
+      </section>
+
+      <section class="sheet" id="sheet-settings" hidden aria-label="Settings">
+        <header><h2>Settings</h2><button type="button" class="close" aria-label="Close">&times;</button></header>
+        <div class="set-list">
+          <div class="set-row">
+            <div class="set-text"><b>Mode</b><small id="modeNote">Cards are dealt face down.</small></div>
+            <div class="seg" role="group" aria-label="Mode">
+              <button type="button" data-mode="easy" aria-pressed="false">Easy</button>
+              <button type="button" data-mode="hard" aria-pressed="true">Hard</button>
+            </div>
+          </div>
+          <label class="set-row set-toggle" for="trainToggle">
+            <span class="set-text"><b>Training mode</b><small id="trainNote">Shows possible matches. High scores are not recorded.</small></span>
+            <input type="checkbox" id="trainToggle">
+            <span class="sw" aria-hidden="true"></span>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <div class="status">
+      <div class="st"><span class="lbl">Level</span><span class="v"><i>n</i>&nbsp;=&nbsp;<b id="nVal">1</b></span></div>
+      <div class="st"><span class="lbl">Score</span><span class="v" id="scoreVal">0</span></div>
+      <div class="st"><span class="lbl">Peak</span><span class="v" id="peakVal">0</span></div>
+      <div class="st"><span class="lbl">Time</span><span class="v" id="timeVal">0.00<small>s</small></span></div>
+      <button class="btn reset" id="hint" type="button">Stats</button>
+    </div>
+    <div class="bar timebar" aria-hidden="true"><i id="timeBar"></i></div>
+    <span class="sr" id="exposedName">none yet</span>
+    <p class="sr" id="live" aria-live="polite"></p>
+  </main>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const board = $('#board'), fx = $('#fx'), banner = $('#banner'), result = $('#result');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let LIMIT = 300000, TARGET = 50, STEP = 10;
+  // Training games are shorter: a level every 3 points, ending at 15 points or 2 minutes.
+  function applyRules() {
+    STEP = S.training ? 3 : 10;
+    LIMIT = S.training ? 120000 : 300000;
+    TARGET = S.training ? 15 : 50;
+  }
+
+  const SYMS = ['circle', 'cross', 'waves', 'square', 'star'];
+  const SYM_NAMES = { circle: 'Circle', cross: 'Cross', waves: 'Waves', square: 'Square', star: 'Star' };
+  const SYM_PATH = {
+    circle: '<circle cx="50" cy="50" r="30"/>',
+    cross: '<path d="M50 16V84M16 50H84"/>',
+    waves: '<path d="M14 32q9-11 18 0t18 0 18 0 18 0M14 50q9-11 18 0t18 0 18 0 18 0M14 68q9-11 18 0t18 0 18 0 18 0"/>',
+    square: '<rect x="21" y="21" width="58" height="58"/>',
+    star: '<path d="M50 13 60.9 38.9 88.8 41.2 67.6 59.4 74 86.8 50 72.2 26 86.8 32.4 59.4 11.2 41.2 39.1 38.9Z"/>'
+  };
+  const COLS = [
+    { n: 'Yellow', v: 'var(--sym-yellow)' },
+    { n: 'Red', v: 'var(--sym-red)' },
+    { n: 'Blue', v: 'var(--sym-blue)' },
+    { n: 'Black', v: 'var(--sym-black)' },
+    { n: 'Green', v: 'var(--sym-green)' }
+  ];
+  const FIRE = {
+    orange: ['#fff7cf', '#ffd145', '#ff7a00', 'rgba(200,40,0,0)', '#ffd25a', '#ff9a1f'],
+    blue:   ['#effbff', '#7fd8ff', '#1e7bff', 'rgba(20,50,220,0)', '#bfeaff', '#2f8bff'],
+    green:  ['#f3ffe9', '#a6ff7f', '#22c25a', 'rgba(0,120,40,0)', '#c9ff9e', '#2ed36a'],
+    yellow: ['#ffffe8', '#fff27a', '#f2c400', 'rgba(170,130,0,0)', '#fff59a', '#f5c800'],
+    purple: ['#fbefff', '#dda3ff', '#8a2be2', 'rgba(80,0,160,0)', '#ecc4ff', '#a64dff']
+  };
+  const RING = [0, 1, 2, 3, 5, 6, 7, 8];
+  // Tiles in play at each level: all eight at n = 1, the four edges at n = 2, left and right of the draw pile from n = 3.
+  const ACTIVE = { 1: RING, 2: [1, 3, 5, 7], 3: [1, 3, 5], 4: [3, 5], 5: [3, 5] };
+  // Each symbol always has the same colour (index into COLS).
+  const FIXED_COL = { star: 0, circle: 1, waves: 2, square: 3, cross: 4 };
+  const active = () => ACTIVE[S.level] || RING;
+  const POS = ['Top left', 'Top', 'Top right', 'Left', 'Draw pile', 'Right', 'Bottom left', 'Bottom', 'Bottom right'];
+  const KEYMAP = {
+    KeyQ: 0, KeyW: 1, KeyE: 2, KeyA: 3, KeyD: 5, KeyZ: 6, KeyX: 7, KeyC: 8,
+    Numpad7: 0, Numpad8: 1, Numpad9: 2, Numpad4: 3, Numpad6: 5, Numpad1: 6, Numpad2: 7, Numpad3: 8,
+    Digit7: 0, Digit8: 1, Digit9: 2, Digit4: 3, Digit6: 5, Digit1: 6, Digit2: 7, Digit3: 8
+  };
+  const rand = k => Math.floor(Math.random() * k);
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  function loadBest(key) { try { const b = JSON.parse(store.get(key) || 'null'); if (b && typeof b.score === 'number') { b.level = Math.min(5, Math.floor(b.score / 10) + 1); return b; } return null; } catch (e) { return null; } }
+
+  const S = {
+    stacks: Array.from({ length: 9 }, () => []),
+    exposed: null, exposedEl: null,
+    score: 0, level: 1, state: 'idle', busy: false,
+    drawn: 0, doubles: 0, singles: 0, wrong: 0,
+    t0: 0, elapsed: 0, bests: { hard: loadBest('znb-best-v8'), easy: loadBest('znb-best-easy-v2') }, mode: 'hard', sessionBests: { easy: null, hard: null }, gen: 0,
+    flying: new Set(), training: false, trained: false
+  };
+
+  // ---------- Card markup ----------
+  const svgSym = (s, cls, sw) =>
+    `<svg class="${cls}" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SYM_PATH[s]}</svg>`;
+  const BACK = '<div class="lattice"></div><div class="medal"><svg viewBox="34 40 262 224" aria-hidden="true"><use href="#wj-brow"/><use href="#wj-eye"/><use href="#wj-marks"/></svg></div>';
+  function cardEl(card, faceUp) {
+    const el = document.createElement('div');
+    el.className = 'card' + (faceUp ? '' : ' down');
+    const front = card
+      ? `<div class="face front" style="color:${COLS[card.c].v}">${svgSym(card.s, 'pip tl', 11)}${svgSym(card.s, 'big', 7.5)}${svgSym(card.s, 'pip br', 11)}</div>`
+      : '';
+    el.innerHTML = `<div class="card-inner">${front}<div class="face back">${BACK}</div></div>`;
+    return el;
+  }
+  function edges(depth) {
+    const s = [];
+    // One visible step per card under the top one (up to 4, so 5 cards in all), each with a dark edge line.
+    for (let i = 1; i <= depth; i++) {
+      s.push(`${i * 2.6}px ${i * 3.2}px 0 0 var(--card-edge)`);
+      s.push(`${i * 2.6 + 0.8}px ${i * 3.2 + 1}px 0 0 var(--card-edge-2)`);
+    }
+    s.push('0 8px 16px rgba(0,0,0,.5)');
+    return s.join(',');
+  }
+
+  // ---------- Board ----------
+  const tiles = [];
+  for (let i = 0; i < 9; i++) {
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'tile' + (i === 4 ? ' centre' : '');
+    const c = i % 3, r = Math.floor(i / 3);
+    t.innerHTML = `<svg class="relief" viewBox="${c * 100} ${r * 100} 100 100" preserveAspectRatio="none" aria-hidden="true"><g filter="url(#emboss)"><use href="#wj-brow"/><g class="eyeball"><use href="#wj-eye"/></g><use href="#wj-marks"/></g></svg>`;
+    const act = i === 4 ? drawPile : () => hit(i);
+    t.addEventListener('pointerdown', e => { if (e.button === 0) { e.preventDefault(); act(); } });
+    t.addEventListener('click', e => { if (e.detail === 0) act(); });
+    board.insertBefore(t, fx);
+    tiles.push(t);
+  }
+  const centre = tiles[4];
+  centre.setAttribute('aria-label', 'Draw pile');
+  const deck = cardEl(null, false);
+  deck.classList.add('deckcard');
+  deck.style.boxShadow = edges(4);
+  centre.appendChild(deck);
+
+  function renderTile(i) {
+    const t = tiles[i];
+    t.querySelector('.card:not(.hint)')?.remove();
+    const st = S.stacks[i];
+    if (st.length) {
+      const el = cardEl(st[0], S.mode === 'easy');
+      if (st[0] === S.lastCard) el.classList.add('last');
+      el.style.boxShadow = edges(Math.min(st.length - 1, 4));
+      t.appendChild(el);
+    }
+    t.setAttribute('aria-label', `${POS[i]} stack, ${st.length ? st.length + (st.length > 1 ? ' cards' : ' card') : 'empty'}`);
+  }
+  function renderAll() { RING.forEach(renderTile); renderHints(); }
+
+  function updateClickMe() {
+    const on = new Set();
+    // Before a game, and once the result is showing after one, the draw pile is the move.
+    if (S.training && (S.state === 'idle' || (S.state === 'over' && !result.hidden))) on.add(4);
+    if (S.training && S.state === 'play' && !S.busy && !S.paused && S.exposed) {
+      const n = S.level, ex = S.exposed;
+      const inFlight = new Set([...S.flying].map(a => a._t));
+      let any = false;
+      active().forEach(i => {
+        const c = S.stacks[i][n - 1];
+        if (c && (c.s === ex.s || c.c === ex.c)) { any = true; if (!inFlight.has(i)) on.add(i); }
+      });
+      if (!any) on.add(4);
+    }
+    tiles.forEach((t, i) => t.classList.toggle('valid', on.has(i)));
+  }
+
+  function nope(i) {
+    const t = tiles[i];
+    t.classList.remove('nope-show'); void t.offsetWidth; t.classList.add('nope-show');
+    clearTimeout(t._nt); t._nt = setTimeout(() => t.classList.remove('nope-show'), 720);
+  }
+
+  function renderHints() {
+    updateClickMe();
+    board.querySelectorAll('.card.hint').forEach(e => e.remove());
+    tiles.forEach(t => t.classList.remove('train-hint', 'hinted'));
+    if (!S.training || !S.exposed || S.state !== 'play') return;
+    const n = S.level, ex = S.exposed;
+    // Tiles with a card still flying in get their hint when it lands.
+    const inFlight = new Set([...S.flying].map(a => a._t));
+    RING.forEach(i => {
+      if (inFlight.has(i)) return;
+      const st = S.stacks[i], c = st[n - 1];
+      if (!c || (c.s !== ex.s && c.c !== ex.c)) return;
+      const t = tiles[i];
+      t.classList.add('hinted');
+      if (n === 1) {
+        // The top card itself matches: it keeps flipping to show its face, Click Me! on its back.
+        // The cards beneath are a real card one step down, so they stay solid while the top card turns.
+        if (st.length > 1) {
+          const base = hintCard(st[1], false, false);
+          base.classList.add('h-base');
+          base.style.translate = 'calc(-50% + 2.6px) 3.2px';
+          base.style.boxShadow = edges(Math.min(st.length - 2, 3));
+          t.appendChild(base);
+        }
+        const el = hintCard(c, false, true);
+        el.classList.add('flipper');
+        if (c === S.lastCard) el.classList.add('last');
+        t.appendChild(el);
+      } else {
+        // Layers, bottom up: the cards below the match, the match fanned at an angle,
+        // and the n-1 cards above it (Click Me! on top), which fade away and back.
+        // Each layer sits at its real depth in the pile (one edge step per card), so when the
+        // top n-1 fade, exactly that many edges vanish from the top.
+        const dx = k => (k * 2.6).toFixed(1), dy = k => (k * 3.2).toFixed(1);
+        if (st.length > n) {
+          const base = hintCard(st[n], false, false);
+          base.classList.add('h-base');
+          base.style.translate = `calc(-50% + ${dx(n)}px) ${dy(n)}px`;
+          base.style.boxShadow = edges(Math.min(st.length - n - 1, 4));
+          t.appendChild(base);
+        }
+        const m = hintCard(c, true, false);
+        m.classList.add('peek');
+        m.style.translate = `calc(-71% + ${dx(n - 1)}px) calc(-8% + ${dy(n - 1)}px)`;
+        t.appendChild(m);
+        const cover = hintCard(st[0], false, true);
+        cover.classList.add('h-cover');
+        cover.style.boxShadow = edges(Math.min(n - 2, 4));
+        t.appendChild(cover);
+      }
+    });
+  }
+
+  function hintCard(card, up, stamp) {
+    const el = cardEl(card, up);
+    el.classList.add('hint');
+    if (stamp) el.querySelector('.back').insertAdjacentHTML('beforeend', '<span class="stamp">Click Me!</span>');
+    return el;
+  }
+
+  function slotRect(i) {
+    const r = tiles[i].getBoundingClientRect(), b = board.getBoundingClientRect();
+    const h = r.height * 0.86, w = h * 5 / 7;
+    return { left: r.left - b.left + (r.width - w) / 2, top: r.top - b.top + r.height * 0.07, w, h, cx: r.left - b.left + r.width / 2, cy: r.top - b.top + r.height / 2 };
+  }
+
+  // ---------- Turns ----------
+  function drawCard() {
+    const card = S.queue && S.queue.length ? S.queue.shift() : (s => ({ s, c: FIXED_COL[s] }))(SYMS[rand(5)]);
+    S.exposed = card;
+    S.drawn++;
+    const el = cardEl(card, false);
+    el.classList.add('exposed');
+    el.style.setProperty('--flip', (reduced ? 10 : 260) + 'ms');
+    centre.appendChild(el);
+    S.exposedEl = el;
+    void el.offsetWidth;
+    el.classList.remove('down');
+    $('#exposedName').textContent = `${COLS[card.c].n} ${SYM_NAMES[card.s]}`;
+    renderHints();
+  }
+
+  function placeExposed() {
+    const card = S.exposed, fromEl = S.exposedEl;
+    const act = active();
+    // An undone card goes back to the tile it came from.
+    const rd = S.redeal; S.redeal = null;
+    const target = rd && rd.card === card && act.includes(rd.target) ? rd.target : act[rand(act.length)];
+    S.stacks[target].unshift(card);
+    S.lastCard = card;
+    board.querySelectorAll('.tile > .card.last').forEach(e => e.classList.remove('last'));
+    fromEl?.remove();
+    S.exposed = null; S.exposedEl = null;
+
+    const a = slotRect(4), b = slotRect(target);
+    const dur = reduced ? 1 : 600;
+    const fly = cardEl(card, true);
+    fly.classList.add('flying');
+    fly.style.width = a.w + 'px';
+    fly.style.height = a.h + 'px';
+    fly.style.setProperty('--flip', dur + 'ms');
+    fx.appendChild(fly);
+    void fly.offsetWidth;
+    if (S.mode !== 'easy') fly.classList.add('down');
+    const anim = fly.animate([
+      { transform: `translate(${a.left - 2}px, ${a.top - 5}px)` },
+      { transform: `translate(${(a.left + b.left) / 2}px, ${(a.top + b.top) / 2 - 10}px) scale(1.07)`, offset: 0.5 },
+      { transform: `translate(${b.left}px, ${b.top}px)` }
+    ], { duration: dur, easing: 'cubic-bezier(.4,.1,.3,1)', fill: 'forwards' });
+    anim._el = fly;
+    anim._t = target;
+    S.flying.add(anim);
+    anim.onfinish = () => { fly.remove(); S.flying.delete(anim); renderTile(target); renderHints(); };
+    return { card, target, anim };
+  }
+
+  function advance() {
+    if (S.exposed) placeExposed();
+    drawCard();
+    updateHUD();
+  }
+
+  // A single click deals after a short pause; a second click inside that pause undoes the last deal instead.
+  function drawPile() {
+    if (S.state === 'idle' || (S.state === 'over' && !result.hidden)) { start(); return; }
+    if (S.state !== 'play' || S.busy || S.paused) return;
+    if (S.tapTimer) { clearTimeout(S.tapTimer); S.tapTimer = 0; undo(); return; }
+    const g = S.gen;
+    S.tapTimer = setTimeout(() => {
+      S.tapTimer = 0;
+      if (g === S.gen && S.state === 'play' && !S.busy) deal();
+    }, 230);
+  }
+
+  function deal() {
+    if (hasMatch()) { if (S.trained) { nope(4); return; } penalty(4); return; }
+    const prevLast = S.lastCard;
+    const placed = S.exposed ? placeExposed() : null;
+    drawCard();
+    updateHUD();
+    S.deals = placed ? [{ ...placed, prevLast, next: S.exposed }] : [];
+  }
+
+  function undo() {
+    const d = S.deals.pop();
+    if (!d || S.exposed !== d.next || S.stacks[d.target][0] !== d.card) return;
+    S.busy = true;
+    const g = S.gen;
+    // The face-up card turns back over and returns to the top of the draw pile.
+    S.queue.unshift(d.next);
+    S.drawn--;
+    const back = S.exposedEl;
+    S.exposed = null; S.exposedEl = null;
+    if (back) {
+      back.style.setProperty('--flip', (reduced ? 10 : 300) + 'ms');
+      back.classList.add('down');
+      setTimeout(() => back.remove(), reduced ? 10 : 320);
+    }
+    // The dealt card lifts off its tile and flies back to the draw pile, face up.
+    S.stacks[d.target].shift();
+    S.lastCard = d.prevLast;
+    S.redeal = { card: d.card, target: d.target };
+    const done = fly => {
+      fly.remove();
+      if (g !== S.gen || S.state !== 'play') return;
+      const el = cardEl(d.card, true);
+      el.classList.add('exposed');
+      centre.appendChild(el);
+      S.exposed = d.card; S.exposedEl = el;
+      $('#exposedName').textContent = `${COLS[d.card.c].n} ${SYM_NAMES[d.card.s]}`;
+      S.busy = false;
+      renderHints();
+      updateHUD();
+    };
+    let anim;
+    if (S.flying.has(d.anim)) {
+      anim = d.anim;
+      anim._el.classList.remove('down');
+      anim.reverse();
+    } else {
+      const a = slotRect(4), b = slotRect(d.target);
+      const dur = reduced ? 1 : 600;
+      const fly = cardEl(d.card, S.mode === 'easy');
+      fly.classList.add('flying');
+      fly.style.width = a.w + 'px';
+      fly.style.height = a.h + 'px';
+      fly.style.setProperty('--flip', dur + 'ms');
+      fx.appendChild(fly);
+      void fly.offsetWidth;
+      fly.classList.remove('down');
+      anim = fly.animate([
+        { transform: `translate(${b.left}px, ${b.top}px)` },
+        { transform: `translate(${(a.left + b.left) / 2}px, ${(a.top + b.top) / 2 - 10}px) scale(1.07)`, offset: 0.5 },
+        { transform: `translate(${a.left - 2}px, ${a.top - 5}px)` }
+      ], { duration: dur, easing: 'cubic-bezier(.4,.1,.3,1)', fill: 'forwards' });
+      anim._el = fly;
+      S.flying.add(anim);
+    }
+    anim._t = -1;
+    anim.onfinish = () => { S.flying.delete(anim); done(anim._el); };
+    renderAll();
+    updateHUD();
+  }
+
+  // Wrong claim or missed match: lose 1 point, burn every stack and the face-up card, then turn up the next card.
+  function penalty(i) {
+    const lost = Math.min(1, S.score);
+    S.score -= lost;
+    S.wrong++;
+    burnAll('yellow', true, i);
+    flash(i, 'wrong');
+    floatText(i, lost ? '−1' : '0', 'bad');
+    updateHUD();
+    S.busy = true;
+    const g = S.gen;
+    setTimeout(() => {
+      if (g !== S.gen || S.state !== 'play') return;
+      S.busy = false;
+      settle();
+    }, reduced ? 300 : 950);
+  }
+
+  function hit(i) {
+    if (S.state === 'play' && !S.busy && S.tapTimer) { clearTimeout(S.tapTimer); S.tapTimer = 0; deal(); }
+    if (S.state !== 'play' || S.busy || S.paused || !S.exposed) return;
+    if (!active().includes(i)) return;
+    const st = S.stacks[i];
+    if (!st.length) return;
+    const n = S.level, ex = S.exposed, cand = st[n - 1];
+    const sym = !!cand && cand.s === ex.s, col = !!cand && cand.c === ex.c;
+    if (!sym && !col && S.trained) { nope(i); return; }
+    S.deals = [];
+    if (sym || col) {
+      const dbl = sym && col, pts = 1;
+      const removed = st.splice(0);
+      // The winning match burns purple like the rest of the finale.
+      // A match that wins burns purple; one that moves you up a level burns green with the rest of the board.
+      const next = S.score + pts;
+      const levelsUp = Math.min(5, Math.floor(next / STEP) + 1) > S.level;
+      const fire = next >= TARGET ? 'purple' : levelsUp ? 'green' : dbl ? 'blue' : 'orange';
+      burn(i, stackItems(removed, n, ex), { fire });
+      burnExposedUnder(fire);
+      renderTile(i);
+      S.score += pts;
+      if (S.score > S.peak) { S.peak = S.score; S.peakLevel = Math.min(5, Math.floor(S.score / STEP) + 1); S.peakTime = Math.min(LIMIT, performance.now() - S.t0); }
+      if (dbl) S.doubles++; else S.singles++;
+      flash(i, dbl ? 'right2' : 'right');
+      floatText(i, '+' + pts, dbl ? 'cool' : 'good');
+    } else {
+      penalty(i);
+      return;
+    }
+    settle();
+  }
+
+  function settle() {
+    if (S.score >= TARGET) { updateHUD(); finish(true); return; }
+    const L = Math.min(5, Math.floor(S.score / STEP) + 1);
+    if (L !== S.level) { levelChange(L); return; }
+    advance();
+  }
+
+  // Burn display for a stack: the card n deep face up (outlined if it matches), else the pile face down.
+  function stackItems(st, n, ex) {
+    const deep = st[n - 1];
+    if (!deep) return st.slice(0, 3).map(c => ({ c, up: false }));
+    const mark = !!ex && (deep.s === ex.s || deep.c === ex.c);
+    const rest = st.filter(c => c !== deep).slice(0, 2).map(c => ({ c, up: false }));
+    return [{ c: deep, up: true, mark }, ...rest];
+  }
+
+  function burnExposedUnder(fire) {
+    burn(4, [{ c: S.exposed, up: true }], { fire, under: true });
+    S.exposedEl?.remove();
+    S.exposed = null; S.exposedEl = null;
+  }
+
+  function hasMatch() {
+    const ex = S.exposed;
+    return !!ex && RING.some(i => { const c = S.stacks[i][S.level - 1]; return c && (c.s === ex.s || c.c === ex.c); });
+  }
+
+  function flash(i, cls) {
+    const t = tiles[i];
+    t.classList.remove('right', 'right2', 'wrong');
+    void t.offsetWidth;
+    t.classList.add(cls);
+    clearTimeout(t._ft);
+    t._ft = setTimeout(() => t.classList.remove(cls), 460);
+  }
+
+  function floatText(i, txt, cls) {
+    const r = slotRect(i);
+    const el = document.createElement('div');
+    el.className = 'float ' + cls;
+    el.textContent = txt;
+    el.style.left = r.cx + 'px';
+    el.style.top = (r.cy - r.h * 0.2) + 'px';
+    board.appendChild(el);
+    setTimeout(() => el.remove(), 950);
+  }
+
+  // ---------- Fire ----------
+  function burn(i, items, opts) {
+    const pal = FIRE[opts.fire];
+    const r = slotRect(i);
+    const w = document.createElement('div');
+    w.className = 'burnwrap';
+    Object.assign(w.style, { left: r.left + 'px', top: r.top + 'px', width: r.w + 'px', height: r.h + 'px' });
+    if (opts.under) {
+      const tr = tiles[i].getBoundingClientRect();
+      Object.assign(w.style, { left: (tr.width - r.w) / 2 + 'px', top: tr.height * 0.07 + 'px', zIndex: 2 });
+    }
+    ['--f1', '--f2', '--f3', '--f4', '--e1', '--e2'].forEach((k, j) => w.style.setProperty(k, pal[j]));
+    for (let k = items.length - 1; k >= 0; k--) {
+      const it = items[k];
+      const el = cardEl(it.c, it.up);
+      el.style.translate = `${-k * 4}px ${-k * 7}px`;
+      el.style.rotate = `${-k * 3}deg`;
+      el.style.setProperty('--d', `${k * 70}ms`);
+      if (it.mark) el.classList.add('matched');
+      w.appendChild(el);
+    }
+    const f = document.createElement('div');
+    f.className = 'fire';
+    f.innerHTML = '<i></i><i></i><i></i><i></i>';
+    w.appendChild(f);
+    for (let e = 0; e < 9; e++) {
+      const s = document.createElement('span');
+      s.className = 'ember';
+      s.style.setProperty('--x', (10 + Math.random() * 80) + '%');
+      s.style.setProperty('--dx', (Math.random() * 40 - 20) + 'px');
+      s.style.setProperty('--dy', -(50 + Math.random() * 50) + 'px');
+      s.style.setProperty('--d', Math.round(Math.random() * 420) + 'ms');
+      w.appendChild(s);
+    }
+    (opts.under ? tiles[i] : fx).appendChild(w);
+    setTimeout(() => w.remove(), 1200);
+  }
+
+  function burnRing(fire, ex, clicked) {
+    S.flying.forEach(a => { a.cancel(); a._el?.remove(); });
+    S.flying.clear();
+    const n = S.level;
+    RING.forEach(i => {
+      const st = S.stacks[i];
+      if (st.length) {
+        const deep = st[n - 1];
+        const matches = ex && deep && (deep.s === ex.s || deep.c === ex.c);
+        burn(i, matches || i === clicked ? stackItems(st, n, ex) : st.slice(0, 3).map(c => ({ c, up: false })), { fire });
+      }
+      st.length = 0;
+    });
+    renderAll();
+  }
+
+  function burnAll(fire, revealMatches, clicked) {
+    S.deals = [];
+    burnRing(fire, revealMatches ? S.exposed : null, clicked);
+    if (S.exposed) {
+      burn(4, [{ c: S.exposed, up: true }], { fire });
+      S.exposedEl?.remove();
+      S.exposed = null; S.exposedEl = null;
+    }
+    renderAll();
+    $('#exposedName').textContent = 'none yet';
+  }
+
+  // ---------- Levels and end ----------
+  function levelChange(L) {
+    const up = L > S.level;
+    S.busy = true;
+    burnAll(up ? 'green' : 'yellow');
+    S.level = L;
+    S.maxLevel = Math.max(S.maxLevel || 1, L);
+    updateHUD();
+    $('#bannerN').textContent = L;
+    $('#bannerText').textContent = up ? 'Ascend' : 'Return';
+    banner.hidden = false;
+    banner.classList.remove('show'); void banner.offsetWidth; banner.classList.add('show');
+    board.classList.add('glow');
+    $('#live').textContent = up ? `Level up. Now n equals ${L}.` : `Level down. Now n equals ${L}.`;
+    const g = S.gen;
+    setTimeout(() => {
+      if (g !== S.gen) return;
+      banner.hidden = true; banner.classList.remove('show');
+      board.classList.remove('glow');
+      if (S.state === 'play') { S.busy = false; drawCard(); updateHUD(); }
+    }, reduced ? 750 : 1550);
+  }
+
+  function finish(won, ended) {
+    if (S.state !== 'play') return;
+    closeSheets();
+    S.state = 'over';
+    S.busy = true;
+    S.elapsed = won || ended ? Math.min(LIMIT, performance.now() - S.t0) : LIMIT;
+    const headline = ended ? 'Ended early' : won ? `${TARGET} reached` : "Time's up";
+    showTime();
+    banner.hidden = true;
+    burnAll(won ? 'purple' : 'yellow');
+    if (won) {
+      // The draw pile burns away too, so the whole eye is clear for its blink.
+      burn(4, [{ c: null, up: false }], { fire: 'purple' });
+      deck.classList.add('burnt');
+    }
+    const g = S.gen;
+    if (won) {
+      setTimeout(() => {
+        if (g !== S.gen) return;
+        board.classList.remove('blink'); void board.offsetWidth; board.classList.add('blink');
+        setTimeout(() => board.classList.remove('blink'), 700);
+      }, reduced ? 0 : 1150);
+    }
+    const time = S.peakTime / 1000;
+    const b = S.bests[S.mode];
+    const isBest = !S.trained && (!b || S.peak > b.score || (S.peak === b.score && time < b.time));
+    if (isBest && S.peak > 0) {
+      S.bests[S.mode] = { score: S.peak, time, level: S.peakLevel };
+      store.set(S.mode === 'hard' ? 'znb-best-v8' : 'znb-best-easy-v2', JSON.stringify(S.bests[S.mode]));
+    }
+    const modeName = S.mode === 'hard' ? 'Hard' : 'Easy';
+    // Training games keep no stats: no last-game record and no session high score.
+    if (S.trained) {
+      S.lastGame = { training: true };
+    } else {
+      S.lastGame = { score: S.peak, level: S.peakLevel, time, mode: modeName, drawn: S.drawn, matches: S.doubles + S.singles, wrong: S.wrong };
+      const sb = S.sessionBests[S.mode];
+      if (!sb || S.peak > sb.score || (S.peak === sb.score && time < sb.time)) S.sessionBests[S.mode] = S.lastGame;
+    }
+    updateHUD();
+    S.headline = headline;
+    $('#resKicker').innerHTML = `${headline} · ${settingsHTML()}`;
+    $('#resScore').textContent = S.peak;
+    $('#resTime').innerHTML = S.peak > 0 ? `points at <i>n</i> = ${S.peakLevel}<br>reached in ${time.toFixed(2)} s` : 'points this game';
+    $('#resNew').textContent = S.trained ? 'Training game, not recorded' : 'New best';
+    $('#resNew').hidden = !(S.trained || (isBest && S.peak > 0));
+    $('#live').textContent = `${headline}. Game score ${S.peak} at n equals ${S.peakLevel}, reached in ${time.toFixed(2)} seconds.`;
+    setTimeout(() => {
+      if (g !== S.gen) return;
+      $('#resBlock').hidden = false;
+      $('#curSettings').hidden = true;
+      result.hidden = false;
+      board.classList.add('ready');
+      deck.classList.remove('burnt');
+      // A finished training game switches training back off for the next game.
+      if (S.training) { S.training = false; trainToggle.checked = false; applyRules(); updateHUD(); }
+      updateClickMe();
+    }, reduced ? 300 : (won ? 2100 : 1400));
+  }
+
+  // ---------- Clock ----------
+  function showTime() {
+    $('#timeVal').innerHTML = `${(S.elapsed / 1000).toFixed(2)}<small>s</small>`;
+    $('#timeBar').style.width = (S.elapsed / LIMIT * 100) + '%';
+  }
+  function frame() {
+    if (S.state !== 'play' || S.paused) return;
+    const t = performance.now() - S.t0;
+    if (t >= LIMIT) { finish(false); return; }
+    S.elapsed = t;
+    showTime();
+    requestAnimationFrame(frame);
+  }
+  // Keeps the 180 s limit honest even if the tab is in the background.
+  setInterval(() => { if (S.state === 'play' && !S.paused && performance.now() - S.t0 >= LIMIT) finish(false); }, 250);
+
+  // Opening Stats during a game pauses it; closing Stats picks up where it left off.
+  function pauseGame() {
+    if (S.state !== 'play' || S.paused) return;
+    S.paused = true;
+    S.pausedAt = performance.now();
+    clearTimeout(S.tapTimer); S.tapTimer = 0;
+  }
+  function resumeGame() {
+    if (!S.paused) return;
+    S.paused = false;
+    S.t0 += performance.now() - S.pausedAt;
+    if (S.state === 'play') requestAnimationFrame(frame);
+    updateHUD();
+  }
+
+  // ---------- Game control ----------
+  function start() {
+    newGame();
+    S.state = 'play';
+    S.trained = S.training;
+    S.t0 = performance.now();
+    board.classList.remove('ready');
+    result.hidden = true;
+    closeSheets();
+    drawCard();
+    updateHUD();
+    requestAnimationFrame(frame);
+  }
+  function newGame() {
+    applyRules();
+    S.gen++;
+    clearTimeout(S.tapTimer);
+    S.flying.forEach(a => { a.cancel(); a._el?.remove(); });
+    S.flying.clear();
+    fx.innerHTML = '';
+    board.querySelectorAll('.float').forEach(e => e.remove());
+    S.stacks.forEach(st => st.length = 0);
+    S.exposedEl?.remove();
+    Object.assign(S, { exposed: null, exposedEl: null, score: 0, level: 1, maxLevel: 1, peak: 0, peakLevel: 1, peakTime: 0, trained: false, deals: [], queue: [], redeal: null, tapTimer: 0, paused: false, state: 'idle', busy: false, drawn: 0, doubles: 0, singles: 0, wrong: 0, elapsed: 0 });
+    banner.hidden = true; banner.classList.remove('show');
+    $('#resBlock').hidden = true;
+    $('#curSettings').hidden = false;
+    result.hidden = false;
+    board.classList.remove('glow', 'blink');
+    deck.classList.remove('burnt');
+    board.classList.add('ready');
+    renderAll();
+    $('#exposedName').textContent = 'none yet';
+    showTime();
+    updateHUD();
+  }
+
+  // Bottom button: Pause / Play during a game, Stats otherwise.
+  $('#hint').addEventListener('click', e => {
+    e.currentTarget.blur();
+    if (S.state === 'play' && S.paused) closeSheets();
+    else openSheet('stats');
+  });
+  // The ! button (shown while paused) ends the game and counts its peak score.
+  $('#resumeBtn').addEventListener('click', e => { e.stopPropagation(); closeSheets(); });
+  $('.end-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    if (S.state === 'play') finish(false, true);
+  });
+
+  function setMode(m) {
+    if (S.state === 'play') return;
+    S.mode = m;
+    S.userSet = true;
+    if (m === 'easy' && S.training) { S.training = false; $('#trainToggle').checked = false; applyRules(); }
+    store.set('znb-mode', m);
+    renderAll();
+    updateHUD();
+  }
+  document.querySelectorAll('.seg button').forEach(btn => btn.addEventListener('click', e => { e.currentTarget.blur(); setMode(btn.dataset.mode); }));
+
+  // ---------- Corner panels ----------
+  const sheets = { help: $('#sheet-help'), stats: $('#sheet-stats'), settings: $('#sheet-settings') };
+  const dockBtns = document.querySelectorAll('.dock-btn[data-sheet]');
+  function closeSheets() {
+    Object.values(sheets).forEach(s => s.hidden = true);
+    dockBtns.forEach(b => b.setAttribute('aria-expanded', 'false'));
+    resumeGame();
+  }
+  function openSheet(name) {
+    const wasOpen = !sheets[name].hidden;
+    closeSheets();
+    if (wasOpen) return;
+    if (name === 'stats') pauseGame();
+    updateHUD();
+    sheets[name].hidden = false;
+    document.querySelector(`.dock-btn[data-sheet="${name}"]`)?.setAttribute('aria-expanded', 'true');
+    sheets[name].querySelector('.close').focus({ preventScroll: true });
+  }
+  dockBtns.forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openSheet(b.dataset.sheet); }));
+  document.querySelectorAll('.sheet .close').forEach(b => b.addEventListener('click', closeSheets));
+  const sheetOpen = () => Object.values(sheets).some(s => !s.hidden);
+
+  document.addEventListener('keydown', e => {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Escape') { closeSheets(); return; }
+    if (sheetOpen()) return;
+    if (e.code === 'Space') {
+      if (e.target.closest && e.target.closest('button:not(#hint), summary, input')) return;
+      e.preventDefault();
+      drawPile();
+      return;
+    }
+    if (e.code in KEYMAP) { e.preventDefault(); hit(KEYMAP[e.code]); }
+  });
+
+  // ---------- HUD ----------
+  // Mode and training words on the curtain are tappable toggles for the next game.
+  function settingsHTML() {
+    const m = S.mode === 'hard' ? 'Hard' : 'Easy', mAlt = m === 'Hard' ? 'Easy' : 'Hard';
+    const t = S.training ? 'on' : 'off', tAlt = t === 'on' ? 'off' : 'on';
+    // The unused word sits invisibly in the same spot, so each pill keeps one width.
+    return `<button type="button" class="tog" data-act="mode" aria-label="${m} mode, tap to switch"><span>${m}</span><span class="alt" aria-hidden="true">${mAlt}</span></button> mode · Training <button type="button" class="tog" data-act="train" aria-label="Training ${t}, tap to switch"><span>${t}</span><span class="alt" aria-hidden="true">${tAlt}</span></button>`;
+  }
+
+  function updateHUD() {
+    updateClickMe();
+    $('#nVal').textContent = S.level;
+    board.classList.toggle('playing', S.state === 'play');
+    board.classList.toggle('paused', !!S.paused && S.state === 'play');
+    const hb = $('#hint'), playingNow = S.state === 'play';
+    hb.classList.toggle('icon', playingNow);
+    hb.classList.toggle('gone', playingNow && !!S.paused);
+    hb.setAttribute('aria-label', playingNow ? 'Exit (pauses the game)' : 'Stats');
+    const want = playingNow ? 'pause' : 'stats';
+    if (hb.dataset.view !== want) {
+      hb.dataset.view = want;
+      hb.innerHTML = playingNow
+        ? 'Exit'
+        : 'Stats';
+    }
+    board.classList.toggle('training', !!S.training);
+    const act = active();
+    tiles.forEach((t, i) => {
+      const off = S.state === 'play' && i !== 4 && !act.includes(i);
+      t.classList.toggle('off', off);
+      if (off) t.setAttribute('aria-disabled', 'true'); else t.removeAttribute('aria-disabled');
+    });
+    $('#scoreVal').textContent = S.score;
+    $('#trainNote').textContent = S.trained && S.state === 'play' ? "Training game: no high score." : 'Hard mode only. Click Me! marks the right move and wrong taps do nothing. A level every 3 points; ends at 15 points or 2 minutes. No high scores.';
+    $('#peakVal').textContent = S.peak || 0;
+    $('#peakDetail').innerHTML = S.peak ? `Peak so far: <b>${S.peak}</b> at <i>n</i> = ${S.peakLevel}, reached in ${(S.peakTime / 1000).toFixed(2)} s` : 'No points yet this game.';
+    const gameLine = g => !g ? 'None yet'
+      : g.training ? 'Training game: no stats recorded.'
+      : `<b>${g.score}</b> points at <i>n</i> = ${g.level}, reached in ${g.time.toFixed(2)} s<br>${g.mode} mode · ${g.drawn} drawn, ${g.matches} matches, ${g.wrong} wrong`;
+    $('#lastGame').innerHTML = gameLine(S.lastGame);
+    $('#sessEasy').innerHTML = gameLine(S.sessionBests.easy);
+    $('#sessHard').innerHTML = gameLine(S.sessionBests.hard);
+    $('#statsTitle').textContent = S.paused ? 'Paused' : 'Stats';
+    $('#curSettings').innerHTML = settingsHTML();
+    if (S.state === 'over' && S.headline) $('#resKicker').innerHTML = `${S.headline} · ${settingsHTML()}`;
+    $('#stDrawn').textContent = S.drawn;
+    $('#stDouble').textContent = S.doubles;
+    $('#stSingle').textContent = S.singles;
+    $('#stWrong').textContent = S.wrong;
+    const fmt = b => b ? `${b.score} in ${b.time.toFixed(2)} s, <i>n</i> = ${b.level}` : 'none yet';
+    $('#bestVal').innerHTML = `Easy: ${fmt(S.bests.easy)}<br>Hard: ${fmt(S.bests.hard)}`;
+    const playing = S.state === 'play';
+    $('#gameHead').textContent = playing ? 'Current game' : 'Last finished game';
+    $('#curGame').hidden = !playing;
+    $('#lastGame').hidden = playing;
+    document.querySelectorAll('.seg button').forEach(btn => {
+      btn.setAttribute('aria-pressed', btn.dataset.mode === S.mode ? 'true' : 'false');
+      btn.disabled = playing;
+      $('#trainToggle').disabled = playing;
+    });
+    $('#modeNote').textContent = (S.mode === 'easy' ? 'Cards are dealt face up.' : 'Cards are dealt face down.') + (playing ? ' Locked until the game ends.' : '');
+    $('#drawHint').textContent = S.state === 'over' ? 'Click the draw pile to play again' : 'Click the draw pile to play';
+    document.querySelectorAll('#ladder li').forEach((li, k) => {
+      li.classList.toggle('current', k + 1 === S.level);
+      li.querySelector('span').textContent = k * STEP;
+      li.classList.toggle('reached', k + 1 < S.level);
+    });
+    const L = S.level;
+    const up = $('#progUp'), down = $('#progDown');
+    const next = L < 5 ? L * STEP : TARGET;
+    const need = Math.max(0, next - S.score);
+    const base = (L - 1) * STEP;
+    $('#progBar').style.width = (Math.max(0, Math.min(1, (S.score - base) / (next - base))) * 100) + '%';
+    up.innerHTML = L < 5
+      ? `<b>${need}</b> more ${need === 1 ? 'point' : 'points'} to reach <i>n</i> = ${L + 1}`
+      : `<b>${need}</b> more ${need === 1 ? 'point' : 'points'} to reach ${TARGET}`;
+    if (L > 1) {
+      down.hidden = false;
+      down.innerHTML = `Below <b>${(L - 1) * STEP}</b> you return to <i>n</i> = ${L - 1}`;
+    } else down.hidden = true;
+  }
+
+  result.addEventListener('click', e => {
+    const b = e.target.closest('.tog');
+    if (!b || S.state === 'play') return;
+    e.stopPropagation();
+    if (b.dataset.act === 'mode') setMode(S.mode === 'hard' ? 'easy' : 'hard');
+    else { trainToggle.checked = !trainToggle.checked; trainToggle.dispatchEvent(new Event('change')); }
+    b.blur();
+  });
+
+  const trainToggle = $('#trainToggle');
+  trainToggle.checked = S.training;
+  trainToggle.addEventListener('change', () => {
+    S.training = trainToggle.checked;
+    S.userSet = true;
+    if (S.training) S.mode = 'hard';
+    applyRules();
+    store.set('znb-training', S.training ? '1' : '0');
+    if (S.training && S.state === 'play') S.trained = true;
+    trainToggle.blur();
+    renderHints();
+    updateHUD();
+  });
+  tiles.forEach(t => t.insertAdjacentHTML('beforeend',
+    '<span class="clickme" aria-hidden="true">Click Me!</span>' +
+    '<span class="nope" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#e5352b" stroke-width="3.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>'));
+  // On first load, if no game has started after 5 seconds, switch training on to show the way,
+  // unless the player has already changed the mode or training setting themselves.
+  setTimeout(() => {
+    if (S.state === 'idle' && !S.training && !S.userSet) {
+      trainToggle.checked = true;
+      trainToggle.dispatchEvent(new Event('change'));
+    }
+  }, 5000);
+  board.classList.add('ready');
+  renderAll();
+  showTime();
+  updateHUD();
+})();
+</script>
+
+</body></html>
