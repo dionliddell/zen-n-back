@@ -273,6 +273,10 @@ button.btn.reset.gone{opacity:0; visibility:hidden; pointer-events:none; transit
 .sheet .signoff a{color:inherit; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px}
 .sheet .signoff a:hover{color:var(--ink)}
 .sheet .signoff a:focus-visible{outline:2px solid var(--gold-hi); outline-offset:2px; border-radius:2px}
+/* Mistake reveal: the cards involved show face up with a glowing yellow border before they burn. */
+.tile > .card.exposed.fail-glow, .tile > .card.hint.fail-reveal{box-shadow:0 0 0 4.5px #f2c400, 0 0 22px 6px rgba(242,196,0,.7)}
+.tile > .card.hint.fail-reveal{z-index:4; animation:revealIn .22s ease-out}
+@keyframes revealIn{from{opacity:0; transform:scale(.92)}}
 .set-list{display:grid}
 .sheet .set-row{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid var(--line); position:relative}
 .sheet .set-row:last-child{border-bottom:1px solid var(--line)}
@@ -697,7 +701,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
 
   function renderHints() {
     updateClickMe();
-    board.querySelectorAll('.card.hint').forEach(e => e.remove());
+    board.querySelectorAll('.card.hint:not(.fail-reveal)').forEach(e => e.remove());
     tiles.forEach(t => t.classList.remove('train-hint', 'hinted'));
     if (!S.training || !S.exposed || S.state !== 'play') return;
     const n = S.level, ex = S.exposed;
@@ -904,17 +908,48 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     const lost = Math.min(1, S.score);
     S.score -= lost;
     S.wrong++;
-    burnAll('yellow', true, i);
     flash(i, 'wrong');
     floatText(i, lost ? '−1' : '0', 'bad');
     updateHUD();
     S.busy = true;
     const g = S.gen;
+    // First show what went wrong for 1 s: the face-up card, plus the card n deep in every
+    // stack that matched it and in the stack that was tapped, each turned face up with a
+    // glowing yellow border. Then everything burns yellow exactly as before.
+    revealMistake(i);
     setTimeout(() => {
       if (g !== S.gen || S.state !== 'play') return;
-      S.busy = false;
-      settle();
-    }, reduced ? 300 : 950);
+      clearReveal();
+      burnAll('yellow', true, i);
+      setTimeout(() => {
+        if (g !== S.gen || S.state !== 'play') return;
+        S.busy = false;
+        settle();
+      }, reduced ? 300 : 950);
+    }, reduced ? 800 : 1000);
+  }
+
+  function revealMistake(clicked) {
+    const n = S.level, ex = S.exposed;
+    board.querySelectorAll('.card.hint').forEach(e => e.remove());
+    tiles.forEach(t => t.classList.remove('hinted'));
+    if (!ex) return;
+    S.exposedEl?.classList.add('fail-glow');
+    RING.forEach(t => {
+      const c = S.stacks[t][n - 1];
+      if (!c) return;
+      const match = c.s === ex.s || c.c === ex.c;
+      if (!match && t !== clicked) return;
+      const el = cardEl(c, true);
+      el.classList.add('hint', 'fail-reveal');
+      // The card n deep shows face up in place on top of its stack, at every level.
+      tiles[t].appendChild(el);
+    });
+  }
+
+  function clearReveal() {
+    board.querySelectorAll('.card.fail-reveal').forEach(e => e.remove());
+    board.querySelectorAll('.card.fail-glow').forEach(e => e.classList.remove('fail-glow'));
   }
 
   function hit(i) {
@@ -1012,8 +1047,9 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     for (let k = items.length - 1; k >= 0; k--) {
       const it = items[k];
       const el = cardEl(it.c, it.up);
-      el.style.translate = `${-k * 4}px ${-k * 7}px`;
-      el.style.rotate = `${-k * 3}deg`;
+      // Burning piles stay square: no fanning, the front card (n deep when revealed) on top.
+      el.style.translate = '0 0';
+      el.style.rotate = '0deg';
       el.style.setProperty('--d', `${k * 70}ms`);
       if (it.mark) el.classList.add('matched');
       w.appendChild(el);
@@ -1044,7 +1080,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
       if (st.length) {
         const deep = st[n - 1];
         const matches = ex && deep && (deep.s === ex.s || deep.c === ex.c);
-        burn(i, matches || i === clicked ? stackItems(st, n, ex) : st.slice(0, 3).map(c => ({ c, up: false })), { fire });
+        burn(i, matches || i === clicked ? stackItems(st, n, ex) : st.slice(0, 3).map(c => ({ c, up: false })), { fire, flat: true });
       }
       st.length = 0;
     });
@@ -1053,6 +1089,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
 
   function burnAll(fire, revealMatches, clicked) {
     S.deals = [];
+    clearReveal();
     burnRing(fire, revealMatches ? S.exposed : null, clicked);
     if (S.exposed) {
       burn(4, [{ c: S.exposed, up: true }], { fire });
