@@ -472,11 +472,12 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
           <li>Each click on the draw pile sends the face-up card onto a random tile and turns up the next card.</li>
           <li>If you think a stack's card <b><i>n</i></b> deep matches the face-up card, click that stack instead. At <i>n</i>&nbsp;=&nbsp;1 that is the top card, at <i>n</i>&nbsp;=&nbsp;2 the second card down, and so on.</li>
           <li>Each symbol always has its own colour: star yellow, circle red, waves blue, square black, cross green. A match scores 1 point and burns the face-up card and that whole stack in blue flame.</li>
+          <li>Seer mode is Hard mode with wildcards. About 1 card in 5 is the current wildcard, a symbol in one of the other colours (a blue star, say). It only matches an identical wildcard <i>n</i> deep, and scores like any other match. The same wildcard keeps turning up until you match it or the board burns clear (after any mistake or a level change), then a new one takes over. Older wildcards left on the board no longer match anything.</li>
           <li>Claiming a stack with no match, or clicking the draw pile when a match was there, costs 1 point and burns every stack and the face-up card. Stacks that did match show their card <i>n</i> deep burning face up. Your score never drops below 0.</li>
           <li><i>n</i> rises at 10, 20, 30 and 40 points and falls if you drop below a mark. The board burns clear at each change.</li>
           <li>Fewer tiles are in play as <i>n</i> rises: all eight at <i>n</i>&nbsp;=&nbsp;1, the four edges at <i>n</i>&nbsp;=&nbsp;2, left, top and right at <i>n</i>&nbsp;=&nbsp;3, and the tiles either side of the draw pile at <i>n</i>&nbsp;=&nbsp;4 and 5. Unused tiles darken.</li>
           <li>Double-click the draw pile to undo the last deal. Deal that card again and it returns to the same tile.</li>
-          <li>Easy deals cards face up; Hard deals them face down. Training mode (Hard only) labels the right move with Click Me!, ignores wrong taps (they flash a red cross), goes up a level every 3 points and ends at 15 points or 2 minutes. Training games don't set a high score. To switch either, tap the word on the start or end screen.</li>
+          <li>Easy deals cards face up; Hard deals them face down; Seer is Hard with wildcards. Training mode (Hard only) labels the right move with Click Me!, ignores wrong taps (they flash a red cross), goes up a level every 3 points and ends at 15 points or 2 minutes. Training games don't set a high score. To switch either, tap the word on the start or end screen.</li>
           <li>Your game score is the highest score you reach in 5 minutes, with its <i>n</i> and the time you reached it. Reaching 50 ends the game early. Exit pauses the game, stops the clock and shows Stats. Resume carries on; Reset! ends the game and counts your peak score. After a game, the same button shows Stats.</li>
           <li>Flames: <span class="swatch" style="background:#1e7bff"></span>match, <span class="swatch" style="background:#22c25a"></span>level up, <span class="swatch" style="background:#f2c400"></span>level down, missed match or time up, <span class="swatch" style="background:#8a2be2"></span>points target reached (50, or 15 in training).</li>
           <li>Keys: <kbd>Space</kbd> draws. <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> / <kbd>A</kbd> <kbd>D</kbd> / <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> or the number pad claim a stack. <kbd>Esc</kbd> closes this panel.</li>
@@ -516,6 +517,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
         <h3>This session's high scores</h3>
         <p><span class="mode-tag">Easy</span><span id="sessEasy">None yet</span></p>
         <p><span class="mode-tag">Hard</span><span id="sessHard">None yet</span></p>
+        <p><span class="mode-tag">Seer</span><span id="sessSeer">None yet</span></p>
         <h3>All-time high scores</h3>
         <p id="bestVal">None yet</p>
       </section>
@@ -613,7 +615,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     exposed: null, exposedEl: null,
     score: 0, level: 1, state: 'idle', busy: false,
     drawn: 0, doubles: 0, singles: 0, wrong: 0,
-    t0: 0, elapsed: 0, bests: { hard: loadBest('znb-best-v8'), easy: loadBest('znb-best-easy-v2') }, mode: 'hard', sessionBests: { easy: null, hard: null }, gen: 0,
+    t0: 0, elapsed: 0, bests: { hard: loadBest('znb-best-v8'), easy: loadBest('znb-best-easy-v2'), seer: loadBest('znb-best-seer-v1') }, mode: 'hard', sessionBests: { easy: null, hard: null, seer: null }, gen: 0,
     flying: new Set(), training: false, trained: false
   };
 
@@ -686,7 +688,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
       let any = false;
       active().forEach(i => {
         const c = S.stacks[i][n - 1];
-        if (c && (c.s === ex.s || c.c === ex.c)) { any = true; if (!inFlight.has(i)) on.add(i); }
+        if (same(c, ex)) { any = true; if (!inFlight.has(i)) on.add(i); }
       });
       if (!any) on.add(4);
     }
@@ -697,6 +699,29 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     const t = tiles[i];
     t.classList.remove('nope-show'); void t.offsetWidth; t.classList.add('nope-show');
     clearTimeout(t._nt); t._nt = setTimeout(() => t.classList.remove('nope-show'), 720);
+  }
+
+  // Two cards match when symbol and colour are both the same. Ordinary cards always carry their
+  // symbol's own colour, so for them this is a symbol match; a wildcard only matches its twin.
+  function same(a, b) { return !!a && !!b && a.s === b.s && a.c === b.c; }
+
+  // Each deal has a 1 in 5 chance of being the current wildcard: a symbol in one of the other
+  // four colours. The same wildcard keeps coming until it is matched, then a new one starts.
+  function newCard() {
+    if (S.mode === 'seer' && Math.random() < 0.2) {
+      if (!S.wild) {
+        let w;
+        do {
+          const s = SYMS[rand(5)];
+          const others = [0, 1, 2, 3, 4].filter(c => c !== FIXED_COL[s]);
+          w = { s, c: others[rand(4)] };
+        } while (S.lastWild && w.s === S.lastWild.s && w.c === S.lastWild.c);
+        S.wild = w; S.lastWild = w;
+      }
+      return { s: S.wild.s, c: S.wild.c, wild: true };
+    }
+    const s = SYMS[rand(5)];
+    return { s, c: FIXED_COL[s] };
   }
 
   function renderHints() {
@@ -710,7 +735,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     RING.forEach(i => {
       if (inFlight.has(i)) return;
       const st = S.stacks[i], c = st[n - 1];
-      if (!c || (c.s !== ex.s && c.c !== ex.c)) return;
+      if (!same(c, ex)) return;
       const t = tiles[i];
       t.classList.add('hinted');
       if (n === 1) {
@@ -767,7 +792,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
 
   // ---------- Turns ----------
   function drawCard() {
-    const card = S.queue && S.queue.length ? S.queue.shift() : (s => ({ s, c: FIXED_COL[s] }))(SYMS[rand(5)]);
+    const card = S.queue && S.queue.length ? S.queue.shift() : newCard();
     S.exposed = card;
     S.drawn++;
     const el = cardEl(card, false);
@@ -905,6 +930,8 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
 
   // Wrong claim or missed match: lose 1 point, burn every stack and the face-up card, then turn up the next card.
   function penalty(i) {
+    // Missing a wildcard match (its twin was n deep) also retires that wildcard.
+    if (S.exposed?.wild && hasMatch()) S.wild = null;
     const lost = Math.min(1, S.score);
     S.score -= lost;
     S.wrong++;
@@ -938,7 +965,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     RING.forEach(t => {
       const c = S.stacks[t][n - 1];
       if (!c) return;
-      const match = c.s === ex.s || c.c === ex.c;
+      const match = same(c, ex);
       if (!match && t !== clicked) return;
       const el = cardEl(c, true);
       el.classList.add('hint', 'fail-reveal');
@@ -959,7 +986,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     const st = S.stacks[i];
     if (!st.length) return;
     const n = S.level, ex = S.exposed, cand = st[n - 1];
-    const sym = !!cand && cand.s === ex.s, col = !!cand && cand.c === ex.c;
+    const sym = same(cand, ex), col = sym;
     if (!sym && !col && S.trained) { nope(i); return; }
     S.deals = [];
     if (sym || col) {
@@ -974,6 +1001,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
       burnExposedUnder(fire);
       renderTile(i);
       S.score += pts;
+      if (ex.wild) S.wild = null; // matched: the next wildcard will be a new one
       if (S.score > S.peak) { S.peak = S.score; S.peakLevel = Math.min(5, Math.floor(S.score / STEP) + 1); S.peakTime = Math.min(LIMIT, performance.now() - S.t0); }
       if (dbl) S.doubles++; else S.singles++;
       flash(i, dbl ? 'right2' : 'right');
@@ -996,7 +1024,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
   function stackItems(st, n, ex) {
     const deep = st[n - 1];
     if (!deep) return st.slice(0, 3).map(c => ({ c, up: false }));
-    const mark = !!ex && (deep.s === ex.s || deep.c === ex.c);
+    const mark = same(deep, ex);
     const rest = st.filter(c => c !== deep).slice(0, 2).map(c => ({ c, up: false }));
     return [{ c: deep, up: true, mark }, ...rest];
   }
@@ -1009,7 +1037,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
 
   function hasMatch() {
     const ex = S.exposed;
-    return !!ex && RING.some(i => { const c = S.stacks[i][S.level - 1]; return c && (c.s === ex.s || c.c === ex.c); });
+    return !!ex && RING.some(i => same(S.stacks[i][S.level - 1], ex));
   }
 
   function flash(i, cls) {
@@ -1079,7 +1107,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
       const st = S.stacks[i];
       if (st.length) {
         const deep = st[n - 1];
-        const matches = ex && deep && (deep.s === ex.s || deep.c === ex.c);
+        const matches = same(deep, ex);
         burn(i, matches || i === clicked ? stackItems(st, n, ex) : st.slice(0, 3).map(c => ({ c, up: false })), { fire, flat: true });
       }
       st.length = 0;
@@ -1090,6 +1118,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
   function burnAll(fire, revealMatches, clicked) {
     S.deals = [];
     clearReveal();
+    S.wild = null; // a board burnt clear always gets a fresh wildcard
     burnRing(fire, revealMatches ? S.exposed : null, clicked);
     if (S.exposed) {
       burn(4, [{ c: S.exposed, up: true }], { fire });
@@ -1151,9 +1180,9 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     const isBest = !S.trained && (!b || S.peak > b.score || (S.peak === b.score && time < b.time));
     if (isBest && S.peak > 0) {
       S.bests[S.mode] = { score: S.peak, time, level: S.peakLevel };
-      store.set(S.mode === 'hard' ? 'znb-best-v8' : 'znb-best-easy-v2', JSON.stringify(S.bests[S.mode]));
+      store.set({ hard: 'znb-best-v8', easy: 'znb-best-easy-v2', seer: 'znb-best-seer-v1' }[S.mode], JSON.stringify(S.bests[S.mode]));
     }
-    const modeName = S.mode === 'hard' ? 'Hard' : 'Easy';
+    const modeName = MODE_NAME[S.mode];
     // Training games keep no stats: no last-game record and no session high score.
     if (S.trained) {
       S.lastGame = { training: true };
@@ -1237,7 +1266,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     board.querySelectorAll('.float').forEach(e => e.remove());
     S.stacks.forEach(st => st.length = 0);
     S.exposedEl?.remove();
-    Object.assign(S, { exposed: null, exposedEl: null, score: 0, level: 1, maxLevel: 1, peak: 0, peakLevel: 1, peakTime: 0, trained: false, deals: [], queue: [], redeal: null, tapTimer: 0, paused: false, state: 'idle', busy: false, drawn: 0, doubles: 0, singles: 0, wrong: 0, elapsed: 0 });
+    Object.assign(S, { exposed: null, exposedEl: null, score: 0, level: 1, maxLevel: 1, peak: 0, peakLevel: 1, peakTime: 0, trained: false, deals: [], queue: [], redeal: null, tapTimer: 0, wild: null, lastWild: null, paused: false, state: 'idle', busy: false, drawn: 0, doubles: 0, singles: 0, wrong: 0, elapsed: 0 });
     banner.hidden = true; banner.classList.remove('show');
     $('#resBlock').hidden = true;
     $('#curSettings').hidden = false;
@@ -1268,7 +1297,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     if (S.state === 'play') return;
     S.mode = m;
     S.userSet = true;
-    if (m === 'easy' && S.training) { S.training = false; $('#trainToggle').checked = false; applyRules(); }
+    if (m !== 'hard' && S.training) { S.training = false; $('#trainToggle').checked = false; applyRules(); }
     store.set('znb-mode', m);
     renderAll();
     updateHUD();
@@ -1312,11 +1341,14 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
 
   // ---------- HUD ----------
   // Mode and training words on the curtain are tappable toggles for the next game.
+  const MODE_NAME = { hard: 'Hard', seer: 'Seer', easy: 'Easy' };
   function settingsHTML() {
-    const m = S.mode === 'hard' ? 'Hard' : 'Easy', mAlt = m === 'Hard' ? 'Easy' : 'Hard';
+    // The mode pill cycles Hard, Seer, Easy. All three words share one spot so the pill keeps its width.
+    const m = MODE_NAME[S.mode];
+    const mAlt = ['Hard', 'Seer', 'Easy'].filter(x => x !== m).map(x => `<span class="alt" aria-hidden="true">${x}</span>`).join('');
     const t = S.training ? 'on' : 'off', tAlt = t === 'on' ? 'off' : 'on';
     // The unused word sits invisibly in the same spot, so each pill keeps one width.
-    return `<button type="button" class="tog" data-act="mode" aria-label="${m} mode, tap to switch"><span>${m}</span><span class="alt" aria-hidden="true">${mAlt}</span></button> mode · Training <button type="button" class="tog" data-act="train" aria-label="Training ${t}, tap to switch"><span>${t}</span><span class="alt" aria-hidden="true">${tAlt}</span></button>`;
+    return `<button type="button" class="tog" data-act="mode" aria-label="${m} mode, tap to switch"><span>${m}</span>${mAlt}</button> mode · Training <button type="button" class="tog" data-act="train" aria-label="Training ${t}, tap to switch"><span>${t}</span><span class="alt" aria-hidden="true">${tAlt}</span></button>`;
   }
 
   function updateHUD() {
@@ -1352,6 +1384,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     $('#lastGame').innerHTML = gameLine(S.lastGame);
     $('#sessEasy').innerHTML = gameLine(S.sessionBests.easy);
     $('#sessHard').innerHTML = gameLine(S.sessionBests.hard);
+    $('#sessSeer').innerHTML = gameLine(S.sessionBests.seer);
     $('#statsTitle').textContent = S.paused ? 'Paused' : 'Stats';
     $('#curSettings').innerHTML = settingsHTML();
     if (S.state === 'over' && S.headline) $('#resKicker').innerHTML = `${S.headline} · ${settingsHTML()}`;
@@ -1360,7 +1393,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     $('#stSingle').textContent = S.singles;
     $('#stWrong').textContent = S.wrong;
     const fmt = b => b ? `${b.score} in ${b.time.toFixed(2)} s, <i>n</i> = ${b.level}` : 'none yet';
-    $('#bestVal').innerHTML = `Easy: ${fmt(S.bests.easy)}<br>Hard: ${fmt(S.bests.hard)}`;
+    $('#bestVal').innerHTML = `Easy: ${fmt(S.bests.easy)}<br>Hard: ${fmt(S.bests.hard)}<br>Seer: ${fmt(S.bests.seer)}`;
     const playing = S.state === 'play';
     $('#gameHead').textContent = playing ? 'Current game' : 'Last finished game';
     $('#curGame').hidden = !playing;
@@ -1396,7 +1429,7 @@ kbd{font:500 12px/1 var(--display); border:1px solid var(--line); border-radius:
     const b = e.target.closest('.tog');
     if (!b || S.state === 'play') return;
     e.stopPropagation();
-    if (b.dataset.act === 'mode') setMode(S.mode === 'hard' ? 'easy' : 'hard');
+    if (b.dataset.act === 'mode') setMode({ hard: 'seer', seer: 'easy', easy: 'hard' }[S.mode]);
     else { trainToggle.checked = !trainToggle.checked; trainToggle.dispatchEvent(new Event('change')); }
     b.blur();
   });
